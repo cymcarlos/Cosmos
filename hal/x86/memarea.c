@@ -419,7 +419,10 @@ bool_t merlove_scan_continumsadsc(memarea_t *mareap, msadsc_t *fmstat, uint_t *f
 	}
 	return FALSE;
 }
-
+//给msadsc_t结构打上标签
+// mareap 内存分区
+// msadsc_t 开始地址 
+// msanr msadsc_t 长度 
 uint_t merlove_setallmarflgs_onmemarea(memarea_t *mareap, msadsc_t *mstat, uint_t msanr)
 {
 	if (NULL == mareap || NULL == mstat || 0 == msanr)
@@ -428,23 +431,24 @@ uint_t merlove_setallmarflgs_onmemarea(memarea_t *mareap, msadsc_t *mstat, uint_
 	}
 	u32_t muindx = 0;
 	msadflgs_t *mdfp = NULL;
+	//获取内存区类型
 	switch (mareap->ma_type)
 	{
 	case MA_TYPE_HWAD:
 	{
-		muindx = MF_MARTY_HWD << 5;
+		muindx = MF_MARTY_HWD << 5;					//硬件区标签		这里左移5位是因为mf_marty字段前面还有5位
 		mdfp = (msadflgs_t *)(&muindx);
 		break;
 	}
 	case MA_TYPE_KRNL:
 	{
-		muindx = MF_MARTY_KRL << 5;
+		muindx = MF_MARTY_KRL << 5;					//内核区标签
 		mdfp = (msadflgs_t *)(&muindx);
 		break;
 	}
 	case MA_TYPE_PROC:
 	{
-		muindx = MF_MARTY_PRC << 5;
+		muindx = MF_MARTY_PRC << 5;					//应用区标签
 		mdfp = (msadflgs_t *)(&muindx);
 		break;
 	}
@@ -465,14 +469,18 @@ uint_t merlove_setallmarflgs_onmemarea(memarea_t *mareap, msadsc_t *mstat, uint_
 	}
 	u64_t phyadr = 0;
 	uint_t retnr = 0;
+	//扫描所有的msadsc_t结构
 	for (uint_t mix = 0; mix < msanr; mix++)
 	{
-		if (MF_MARTY_INIT == mstat[mix].md_indxflgs.mf_marty)
+		if (MF_MARTY_INIT == mstat[mix].md_indxflgs.mf_marty)			//刚初始化
 		{
-			phyadr = mstat[mix].md_phyadrs.paf_padrs << PSHRSIZE;
+			//获取msadsc_t结构对应的地址
+			phyadr = mstat[mix].md_phyadrs.paf_padrs << PSHRSIZE;		// 实际的物理地址
+			//和内存区的地址区间比较
 			if (phyadr >= mareap->ma_logicstart && ((phyadr + PAGESIZE) - 1) <= mareap->ma_logicend)
 			{
-				mstat[mix].md_indxflgs.mf_marty = mdfp->mf_marty;
+				//设置msadsc_t结构的标签 
+				mstat[mix].md_indxflgs.mf_marty = mdfp->mf_marty;		// 
 				retnr++;
 			}
 		}
@@ -753,10 +761,14 @@ bool_t merlove_mem_onmemarea(memarea_t *mareap, msadsc_t *mstat, uint_t msanr)
 
 bool_t merlove_mem_core(machbstart_t *mbsp)
 {
+	//获取msadsc_t结构的首地址
 	msadsc_t *mstatp = (msadsc_t *)phyadr_to_viradr((adr_t)mbsp->mb_memmappadr);
+	//获取msadsc_t结构的个数
 	uint_t msanr = (uint_t)mbsp->mb_memmapnr, maxp = 0;
+	//获取memarea_t结构的首地址
 	memarea_t *marea = (memarea_t *)phyadr_to_viradr((adr_t)mbsp->mb_memznpadr);
 	uint_t sretf = ~0UL, tretf = ~0UL;
+	//遍历每个memarea_t结构
 	for (uint_t mi = 0; mi < (uint_t)mbsp->mb_memznnr; mi++)
 	{
 		sretf = merlove_setallmarflgs_onmemarea(&marea[mi], mstatp, msanr);
@@ -764,6 +776,7 @@ bool_t merlove_mem_core(machbstart_t *mbsp)
 		{
 			return FALSE;
 		}
+		// TODO 这里应该是测试
 		tretf = test_setflgs(&marea[mi], mstatp, msanr);
 		if ((~0UL) == tretf)
 		{
@@ -774,8 +787,10 @@ bool_t merlove_mem_core(machbstart_t *mbsp)
 			return FALSE;
 		}
 	}
+	//遍历每个memarea_t结构
 	for (uint_t maidx = 0; maidx < (uint_t)mbsp->mb_memznnr; maidx++)
 	{
+		//针对其中一个memarea_t结构对msadsc_t结构进行合并
 		if (merlove_mem_onmemarea(&marea[maidx], mstatp, msanr) == FALSE)
 		{
 			return FALSE;
@@ -946,7 +961,7 @@ void mem_check_mareadata(machbstart_t *mbsp)
 	return;
 }
 
-//初始化页面合并 test
+//初始化页面合并 
 void init_merlove_mem()
 {
 	if (merlove_mem_core(&kmachbsp) == FALSE)
