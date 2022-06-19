@@ -946,7 +946,7 @@ void mem_check_mareadata(machbstart_t *mbsp)
 	return;
 }
 
-//初始化页面合并
+//初始化页面合并 test
 void init_merlove_mem()
 {
 	if (merlove_mem_core(&kmachbsp) == FALSE)
