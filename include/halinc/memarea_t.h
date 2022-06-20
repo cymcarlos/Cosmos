@@ -45,9 +45,9 @@ typedef struct s_MAFUNCOBJS
 
 // bafhlst_t  状态位
 #define BAFH_STUS_INIT 0
-#define BAFH_STUS_ONEM 1
+#define BAFH_STUS_ONEM 1			// 单个数据
 #define BAFH_STUS_DIVP 2
-#define BAFH_STUS_DIVM 3
+#define BAFH_STUS_DIVM 3			// 初始化一般用这个
 
 
 typedef struct s_BAFHLST
@@ -55,8 +55,8 @@ typedef struct s_BAFHLST
     spinlock_t af_lock;    //保护自身结构的自旋锁
     u32_t af_stus;         //状态 
     uint_t af_oder;        //页面数的位移量
-    uint_t af_oderpnr;     //oder对应的页面数比如 oder为2那就是1<<2=4
-    uint_t af_fobjnr;      //多少个空闲msadsc_t结构，即空闲页面
+    uint_t af_oderpnr;     //oder对应的页面数比如 oder为2那就是1<<2=4		这里一般是对应着dm_mdmlielst的下标， 保持一致
+    uint_t af_fobjnr;      //多少个空闲msadsc_t结构，即空闲页面				难道是 多少个是连续段的意思？
     uint_t af_mobjnr;      //此结构的msadsc_t结构总数，即此结构总页面
     uint_t af_alcindx;     //此结构的分配计数
     uint_t af_freindx;     //此结构的释放计数
@@ -65,7 +65,7 @@ typedef struct s_BAFHLST
 	list_h_t af_ovelst;
 }bafhlst_t;
 
-#define MDIVMER_ARR_LMAX 52		
+#define MDIVMER_ARR_LMAX 52					// 数组52个
 #define MDIVMER_ARR_BMAX 11
 #define MDIVMER_ARR_OMAX 9
 // 分割合并结构体

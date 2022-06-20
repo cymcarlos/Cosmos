@@ -41,7 +41,7 @@ void mafuncobjs_t_init(mafuncobjs_t *initp)
 }
 
 void bafhlst_t_init(bafhlst_t *initp, u32_t stus, uint_t oder, uint_t oderpnr)
-{	//初始化bafhlst_t结构体的基本数据
+{
 	knl_spinlock_init(&initp->af_lock);
 	initp->af_stus = stus;
 	initp->af_oder = oder;				
@@ -178,16 +178,19 @@ uint_t continumsadsc_is_ok(msadsc_t *prevmsa, msadsc_t *nextmsa, msadflgs_t *cmp
 
 	if (NULL != prevmsa && NULL != nextmsa)
 	{
+		// 属于这个内存分区  &&  当前物理页没有分配（分配计数为0） && 物理页分配类型为空闲 &&  物理地址标记位为未分配
 		if (prevmsa->md_indxflgs.mf_marty == cmpmdfp->mf_marty &&
 			0 == prevmsa->md_indxflgs.mf_uindx &&
 			MF_MOCTY_FREE == prevmsa->md_indxflgs.mf_mocty &&
 			PAF_NO_ALLOC == prevmsa->md_phyadrs.paf_alloc)
 		{
+			// 类似
 			if (nextmsa->md_indxflgs.mf_marty == cmpmdfp->mf_marty &&
 				0 == nextmsa->md_indxflgs.mf_uindx &&
 				MF_MOCTY_FREE == nextmsa->md_indxflgs.mf_mocty &&
 				PAF_NO_ALLOC == nextmsa->md_phyadrs.paf_alloc)
 			{
+				// 判断是否连续
 				if ((nextmsa->md_phyadrs.paf_padrs << PSHRSIZE) - (prevmsa->md_phyadrs.paf_padrs << PSHRSIZE) == PAGESIZE)
 				{
 					return 2;
@@ -202,6 +205,9 @@ uint_t continumsadsc_is_ok(msadsc_t *prevmsa, msadsc_t *nextmsa, msadflgs_t *cmp
 	return (~0UL);
 }
 
+// cmpmdfp 	内存空间地址描述符标志   明显也是要属于这个分区才能算 
+// fmsanr 	扫描总页数， 一般为物理页数
+// retmnr 	返回的数据结构  多少个连续的， 0：一个连续（单独一个，其实就是不连续）  1：两个连续
 bool_t scan_len_msadsc(msadsc_t *mstat, msadflgs_t *cmpmdfp, uint_t mnr, uint_t *retmnr)
 {
 	uint_t retclok = 0;
@@ -213,21 +219,21 @@ bool_t scan_len_msadsc(msadsc_t *mstat, msadflgs_t *cmpmdfp, uint_t mnr, uint_t 
 	for (uint_t tmdx = 0; tmdx < mnr - 1; tmdx++)
 	{
 		retclok = continumsadsc_is_ok(&mstat[tmdx], &mstat[tmdx + 1], cmpmdfp);
-		if ((~0UL) == retclok)
+		if ((~0UL) == retclok)	// 数据有问题， 为空等
 		{
 			*retmnr = 0;
 			return FALSE;
 		}
-		if (0 == retclok)
+		if (0 == retclok)		// 数据有问题， 前一个就不是空闲，或者连续
 		{
 			*retmnr = 0;
 			return FALSE;
 		}
-		if (1 == retclok)
+		if (1 == retclok)		// 刚好下一个就不是空闲，或者连续
 		{
 			*retmnr = retnr;
 			return TRUE;
-		}
+		}						// 连续且空闲
 		retnr++;
 	}
 	*retmnr = retnr;
@@ -340,6 +346,10 @@ uint_t check_continumsadsc(memarea_t *mareap, msadsc_t *stat, msadsc_t *end, uin
 	return ok;
 }
 
+// mareap 		内存分区地址
+// fmstat 		物理页开始地址
+// fntmsanr 	扫描开始物理页下标
+// fmsanr		扫描总页数
 bool_t merlove_scan_continumsadsc(memarea_t *mareap, msadsc_t *fmstat, uint_t *fntmsanr, uint_t fmsanr,
 										 msadsc_t **retmsastatp, msadsc_t **retmsaendp, uint_t *retfmnr)
 {
@@ -389,27 +399,29 @@ bool_t merlove_scan_continumsadsc(memarea_t *mareap, msadsc_t *fmstat, uint_t *f
 	msadsc_t *msastat = fmstat;
 	uint_t retfindmnr = 0;
 	bool_t rets = FALSE;
-	uint_t tmidx = *fntmsanr;
+	uint_t tmidx = *fntmsanr; 			// 开始扫描的物理页下标
 	for (; tmidx < fmsanr; tmidx++)
 	{
+		// 属于这个内存分区  &&  当前物理页没有分配（分配计数为0） && 物理页分配类型为空闲 &&  物理地址标记位为未分配
 		if (msastat[tmidx].md_indxflgs.mf_marty == mdfp->mf_marty &&
 			0 == msastat[tmidx].md_indxflgs.mf_uindx &&
 			MF_MOCTY_FREE == msastat[tmidx].md_indxflgs.mf_mocty &&
 			PAF_NO_ALLOC == msastat[tmidx].md_phyadrs.paf_alloc)
 		{
+			//返回从这个msadsc_t结构开始到下一个非空闲 或者地址非连续的msadsc_t结构对应的msadsc_t结构索引号到retfindmnr变量中
 			rets = scan_len_msadsc(&msastat[tmidx], mdfp, fmsanr, &retfindmnr);
 			if (FALSE == rets)
 			{
 				system_error("scan_len_msadsc err\n");
 			}
-			*fntmsanr = tmidx + retfindmnr + 1;
-			*retmsastatp = &msastat[tmidx];
-			*retmsaendp = &msastat[tmidx + retfindmnr];
-			*retfmnr = retfindmnr + 1;
+			*fntmsanr = tmidx + retfindmnr + 1;				// 更新开始扫描的物理页下标  retfindmnr = 0 则一个连续都没有
+			*retmsastatp = &msastat[tmidx];					// 连续的开始地址
+			*retmsaendp = &msastat[tmidx + retfindmnr];		// 连续的结束地址
+			*retfmnr = retfindmnr + 1;						// 连续的个数
 			return TRUE;
 		}
 	}
-	if (tmidx >= fmsanr)
+	if (tmidx >= fmsanr)			// 超过了物理页的页数， 明显有问题，容错处理
 	{
 		*fntmsanr = fmsanr;
 		*retmsastatp = NULL;
@@ -550,26 +562,30 @@ uint_t test_setflgs(memarea_t *mareap, msadsc_t *mstat, uint_t msanr)
 	return retnr;
 }
 
+//根据地址连续的msadsc_t结构的数量查找合适bafhlst_t结构
 bafhlst_t *find_continumsa_inbafhlst(memarea_t *mareap, uint_t fmnr)
 {
 	bafhlst_t *retbafhp = NULL;
 	uint_t in = 0;
-	if (NULL == mareap || 0 == fmnr)
+	if (NULL == mareap || 0 == fmnr)			// 检查判断
 	{
 		return NULL;
 	}
 
-	if (MA_TYPE_PROC == mareap->ma_type)
+	if (MA_TYPE_PROC == mareap->ma_type)		//TODO 如果是用户区， 直接返回第一个？， 这里不太懂
 	{
 		return &mareap->ma_mdmdata.dm_onemsalst;
 	}
-	if (MA_TYPE_SHAR == mareap->ma_type)
+	if (MA_TYPE_SHAR == mareap->ma_type)		// 如果是共享区, 直接返回null
 	{
 		return NULL;
 	}
 
 	in = 0;
 	retbafhp = NULL;
+	// 选择一个 刚好的bafhlst_t 例如   fmnr = 10 则选择af_oderpnr = 8(li = 3) 的
+	// 选择一个 刚好的bafhlst_t 例如   fmnr = 16 则选择af_oderpnr = 16(li = 4) 的
+
 	for (uint_t li = 0; li < MDIVMER_ARR_LMAX; li++)
 	{
 		if ((mareap->ma_mdmdata.dm_mdmlielst[li].af_oderpnr) <= fmnr)
@@ -578,6 +594,7 @@ bafhlst_t *find_continumsa_inbafhlst(memarea_t *mareap, uint_t fmnr)
 			in++;
 		}
 	}
+	// 容错处理
 	if (MDIVMER_ARR_LMAX <= in || NULL == retbafhp)
 	{
 		return NULL;
@@ -616,9 +633,14 @@ bool_t continumsadsc_add_procmareabafh(memarea_t *mareap, bafhlst_t *bafhp, msad
 	}
 	return TRUE;
 }
-
+// mareap 内存分区
+// bafhp bafhlst_t结构
+// fstat bafhlst_t指针  开始的那个
+// fend  bafhlst_t指针  结束那个
+// bafhlst_t结构 fmnr的挂的物理页长度
 bool_t continumsadsc_add_bafhlst(memarea_t *mareap, bafhlst_t *bafhp, msadsc_t *fstat, msadsc_t *fend, uint_t fmnr)
 {
+	// 一堆容错检查
 	if (NULL == mareap || NULL == bafhp || NULL == fstat || NULL == fend || 0 == fmnr)
 	{
 		return FALSE;
@@ -631,20 +653,26 @@ bool_t continumsadsc_add_bafhlst(memarea_t *mareap, bafhlst_t *bafhp, msadsc_t *
 	{
 		return FALSE;
 	}
-	fstat->md_indxflgs.mf_olkty = MF_OLKTY_ODER;
+	fstat->md_indxflgs.mf_olkty = MF_OLKTY_ODER;		// TODO	标记为开始？
+	//开始的msadsc_t结构指向最后的msadsc_t结构
 	fstat->md_odlink = fend;
 	// fstat==fend
 	fend->md_indxflgs.mf_olkty = MF_OLKTY_BAFH;
+	//最后的msadsc_t结构指向它属于的bafhlst_t结构
 	fend->md_odlink = bafhp;
-	list_add(&fstat->md_list, &bafhp->af_frelst);
-	bafhp->af_fobjnr++;
-	bafhp->af_mobjnr++;
-	mareap->ma_maxpages += fmnr;
+	//把多个地址连续的msadsc_t结构的的开始的那个msadsc_t结构挂载到bafhlst_t结构的af_frelst(空闲中)中
+	list_add(&fstat->md_list, &bafhp->af_frelst);		// af_frelst <===> fstat->md_list  <===>  af_frelst->next(旧的)
+	bafhp->af_fobjnr++;									// TODO 为啥是 +1 空闲页面， 难道是 多少个是连续段的意思？
+	bafhp->af_mobjnr++;									// 挂载的总页面
+	mareap->ma_maxpages += fmnr;						
 	mareap->ma_freepages += fmnr;
 	mareap->ma_allmsadscnr += fmnr;
 	return TRUE;
 }
 
+// rfstat 			开始地址
+// rfend 			结束地址
+// rfmnr			长度
 bool_t continumsadsc_mareabafh_core(memarea_t *mareap, msadsc_t **rfstat, msadsc_t **rfend, uint_t *rfmnr)
 {
 
@@ -654,22 +682,26 @@ bool_t continumsadsc_mareabafh_core(memarea_t *mareap, msadsc_t **rfstat, msadsc
 	}
 	uint_t retval = *rfmnr, tmpmnr = 0;
 	msadsc_t *mstat = *rfstat, *mend = *rfend;
-	if (1 > (retval))
+	// mstat 开始的msadsc_t指针
+	// mend  结束的msadsc_t指针
+	if (1 > (retval))		// 容错处理
 	{
 		return FALSE;
 	}
+	//根据地址连续的msadsc_t结构的数量查找合适bafhlst_t结构
 	bafhlst_t *bafhp = find_continumsa_inbafhlst(mareap, retval);
-	if (NULL == bafhp)
+	if (NULL == bafhp)			// 为空异常
 	{
 		return FALSE;
 	}
-	if (retval < bafhp->af_oderpnr)
+	if (retval < bafhp->af_oderpnr)		// 页数大于连续页数，异常
 	{
 		return FALSE;
 	}
+	// 不是用户区
 	if ((BAFH_STUS_DIVP == bafhp->af_stus || BAFH_STUS_DIVM == bafhp->af_stus) && MA_TYPE_PROC != mareap->ma_type)
 	{
-		tmpmnr = retval - bafhp->af_oderpnr;
+		tmpmnr = retval - bafhp->af_oderpnr;	//剩余的长度
 		if (continumsadsc_add_bafhlst(mareap, bafhp, mstat, &mstat[bafhp->af_oderpnr - 1], bafhp->af_oderpnr) == FALSE)
 		{
 			return FALSE;
@@ -680,11 +712,12 @@ bool_t continumsadsc_mareabafh_core(memarea_t *mareap, msadsc_t **rfstat, msadsc
 			*rfend = NULL;
 			return TRUE;
 		}
-		*rfstat = &mstat[bafhp->af_oderpnr];
-		*rfmnr = tmpmnr;
+		*rfstat = &mstat[bafhp->af_oderpnr];	// 被截断的剩余连续物理页的指针的地址
+		*rfmnr = tmpmnr;						// 剩余的长度
 
 		return TRUE;
 	}
+	// bafhp->af_stus 如果是单个的 且是用户区的
 	if (BAFH_STUS_ONEM == bafhp->af_stus && MA_TYPE_PROC == mareap->ma_type)
 	{
 		if (continumsadsc_add_procmareabafh(mareap, bafhp, mstat, mend, *rfmnr) == FALSE)
@@ -699,6 +732,7 @@ bool_t continumsadsc_mareabafh_core(memarea_t *mareap, msadsc_t **rfstat, msadsc
 	return FALSE;
 }
 
+// 把物理页挂到
 bool_t merlove_continumsadsc_mareabafh(memarea_t *mareap, msadsc_t *mstat, msadsc_t *mend, uint_t mnr)
 {
 	if (NULL == mareap || NULL == mstat || NULL == mend || 0 == mnr)
@@ -707,8 +741,10 @@ bool_t merlove_continumsadsc_mareabafh(memarea_t *mareap, msadsc_t *mstat, msads
 	}
 	uint_t mnridx = mnr;
 	msadsc_t *fstat = mstat, *fend = mend;
+	//如果mnridx > 0并且NULL != fend就循环调用continumsadsc_mareabafh_core函数，而mnridx和fend由这个函数控制
 	for (; (mnridx > 0 && NULL != fend);)
 	{
+		//为一段地址连续的msadsc_t结构寻找合适m_mdmlielst数组中的bafhlst_t结构
 		if (continumsadsc_mareabafh_core(mareap, &fstat, &fend, &mnridx) == FALSE)
 		{
 			system_error("continumsadsc_mareabafh_core fail\n");
@@ -717,13 +753,15 @@ bool_t merlove_continumsadsc_mareabafh(memarea_t *mareap, msadsc_t *mstat, msads
 	return TRUE;
 }
 
+// msanr 物理页页数
 bool_t merlove_mem_onmemarea(memarea_t *mareap, msadsc_t *mstat, uint_t msanr)
 {
+	// 检查， 去掉为空的情况， 错误的情况
 	if (NULL == mareap || NULL == mstat || 0 == msanr)
 	{
 		return FALSE;
 	}
-	if (MA_TYPE_SHAR == mareap->ma_type)
+	if (MA_TYPE_SHAR == mareap->ma_type)			
 	{
 		return TRUE;
 	}
@@ -739,17 +777,20 @@ bool_t merlove_mem_onmemarea(memarea_t *mareap, msadsc_t *mstat, uint_t msanr)
 
 	for (; fntmnr < msanr;)
 	{
+		// 扫描， 会更新fntmnr
 		retscan = merlove_scan_continumsadsc(mareap, fntmsap, &fntmnr, msanr, &retstatmsap, &retendmsap, &retfindmnr);
-		if (FALSE == retscan)
+		if (FALSE == retscan)					// 容错处理
 		{
 			system_error("merlove_scan_continumsadsc fail\n");
 		}
 		if (NULL != retstatmsap && NULL != retendmsap)
 		{
+			// 再次检查
 			if (check_continumsadsc(mareap, retstatmsap, retendmsap, retfindmnr) == 0)
 			{
 				system_error("check_continumsadsc fail\n");
 			}
+			//把一组连续的msadsc_t结构体挂载到合适的m_mdmlielst数组中的bafhlst_t结构中
 			if (merlove_continumsadsc_mareabafh(mareap, retstatmsap, retendmsap, retfindmnr) == FALSE)
 			{
 				system_error("merlove_continumsadsc_mareabafh fail\n");

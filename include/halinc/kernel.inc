@@ -232,7 +232,7 @@ global  asm_ret_from_user_mode
 	call 	hal_fault_allocator
 	RESTOREALLFAULT
 %endmacro
-//CPU异常
+;CPU异常
 %macro	SRFTFAULT_ECODE 1
 	SAVEALLFAULT
 	mov r14w,0x10				;这是段
@@ -247,7 +247,7 @@ global  asm_ret_from_user_mode
 	RESTOREALLFAULT
 %endmacro
 
-//硬件中断
+;硬件中断
 %macro	HARWINT	1
 	SAVEALL
 	

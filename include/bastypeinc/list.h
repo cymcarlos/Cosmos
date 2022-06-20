@@ -8,8 +8,8 @@
 
 KLINE void list_init(list_h_t *list)
 {
-	list->prev = list;
-	list->next = list;
+	list->prev = list;			// 都指向自己
+	list->next = list;		    // 指向自己		
 	return;
 }
 
@@ -20,12 +20,13 @@ KLINE void __list_del(list_h_t *prev, list_h_t *next)
 	return;
 }
 
+// prev <=====> new <====> next
 KLINE void __list_add(list_h_t *new, list_h_t *prev, list_h_t *next)
 {
 	next->prev = new;
 	new->next = next;
-	new->prev = prev;
-	prev->next = new;
+	new->prev = prev;									 
+	prev->next = new;			// prev <=====> new <====> next
 	return;
 }
 

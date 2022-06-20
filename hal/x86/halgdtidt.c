@@ -102,14 +102,15 @@ PUBLIC LKINIT void load_x64_gdt(igdtr_t *igdtrp)
     return;
 }
 
+// 加载中断门向量表
 PUBLIC LKINIT void load_x64_idt(iidtr_t *idtptr)
 {
     __asm__ __volatile__(
-        "lidt (%0) \n\t"
+        "lidt (%0) \n\t"            // (%0)站位符
 
         :
-        : "r"(idtptr)
-        : "memory");
+        : "r"(idtptr)               // 和通用寄存器绑定
+        : "memory");     // memory是说cache作废， 全部都去内存中取值
     return;
 }
 
@@ -147,7 +148,7 @@ PUBLIC LKINIT void init_descriptor()
     return;
 }
 
-设置中断门描述符
+//设置中断门描述符
 PUBLIC LKINIT void init_idt_descriptor()
 {
     //一开始把所有中断的处理程序设置为保留的通用处理程序
@@ -155,7 +156,7 @@ PUBLIC LKINIT void init_idt_descriptor()
     {
         set_idt_desc((u8_t)intindx, DA_386IGate, hxi_exc_general_intpfault, PRIVILEGE_KRNL);
     }
-    set_idt_desc(INT_VECTOR_DIVIDE, DA_386IGate, exc_divide_error, PRIVILEGE_KRNL);
+    set_idt_desc(INT_VECTOR_DIVIDE, DA_386IGate, exc_divide_error, PRIVILEGE_KRNL);    //  exc_divide_error这里的地址估计也是由MMU管理的
 
     set_idt_desc(INT_VECTOR_DEBUG, DA_386IGate, exc_single_step_exception, PRIVILEGE_KRNL);
 

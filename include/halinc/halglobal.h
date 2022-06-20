@@ -66,16 +66,16 @@ void	hxi_apic_error();
 void	exi_sys_call();
 void	asm_ret_from_user_mode();
 
-// 由MMU控制的？
+// 这里的内存管理应该是交给了MMU了
 HAL_DEFGLOB_VARIABLE(descriptor_t,x64_gdt)[CPUCORE_MAX][GDTMAX];
 HAL_DEFGLOB_VARIABLE(gate_t,x64_idt)[IDTMAX];
 HAL_DEFGLOB_VARIABLE(x64tss_t,x64tss)[CPUCORE_MAX]; 
 HAL_DEFGLOB_VARIABLE(igdtr_t,x64_igdt_reg)[CPUCORE_MAX];
 HAL_DEFGLOB_VARIABLE(iidtr_t,x64_iidt_reg);
-HAL_DEFGLOB_VARIABLE(machbstart_t,kmachbsp);                                 // 机器信息
+HAL_DEFGLOB_VARIABLE(machbstart_t,kmachbsp);                   // 机器信息                    
 HAL_DEFGLOB_VARIABLE(dftgraph_t,kdftgh);
 HAL_DEFGLOB_VARIABLE(memmgrob_t,memmgrob);
-HAL_DEFGLOB_VARIABLE(intfltdsc_t,machintflt)[IDTMAX];
+HAL_DEFGLOB_VARIABLE(intfltdsc_t,machintflt)[IDTMAX];          // 中断框架数组
 #endif
 void die(u32_t dt);
 #endif // HALGLOBAL_H

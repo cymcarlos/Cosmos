@@ -129,8 +129,8 @@ void init_hal()
     init_halplaltform();
     // die(0);
     move_img2maxpadr(&kmachbsp);
-    init_halmm();           
-    init_halintupt();
+    init_halmm();                   // 初始化接口管理函数    
+    init_halintupt();               // 初始化全局描述符和中断门描述符
     // test_avx2();
     kprint("HAL层初始化成功\n");
     // die(0x400);

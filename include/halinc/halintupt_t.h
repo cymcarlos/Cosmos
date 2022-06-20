@@ -352,17 +352,17 @@ typedef struct s_ILNEDSC
 
 
 
-
+// 中断框架结构体
 typedef struct s_INTFLTDSC
 {
-    spinlock_t  i_lock;
+    spinlock_t  i_lock;        // 自旋锁
     u32_t       i_flg;
     u32_t       i_stus;
     uint_t      i_prity;        //中断优先级
     uint_t      i_irqnr;        //中断号
     uint_t      i_deep;         //中断嵌套深度
     u64_t       i_indx;         //中断计数
-    list_h_t    i_serlist;
+    list_h_t    i_serlist;      // 设备结构体首地址
     uint_t      i_sernr;
     list_h_t    i_serthrdlst;   //中断线程链表头
     uint_t      i_serthrdnr;    //中断线程个数
@@ -375,6 +375,7 @@ typedef struct s_INTFLTDSC
     void*       i_extp;
 }intfltdsc_t;
 
+// 设备结构体
 typedef struct s_INTSERDSC
 {
     list_h_t    s_list;

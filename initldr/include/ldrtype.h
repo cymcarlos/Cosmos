@@ -400,11 +400,11 @@ typedef struct s_MACHBSTART                             // MBSPADR ((machbstart_
     u64_t   mb_e820exnr;
     u64_t   mb_e820exsz;
     u64_t   mb_memznpadr;
-    u64_t   mb_memznnr;
+    u64_t   mb_memznnr;                                 // 内存分区数量
     u64_t   mb_memznsz;
     u64_t   mb_memznchksum;
     u64_t   mb_memmappadr;
-    u64_t   mb_memmapnr;
+    u64_t   mb_memmapnr;                                // 物理页页数
     u64_t   mb_memmapsz;                                // 应该是内存空间大小
     u64_t   mb_memmapchksum;
     u64_t   mb_pml4padr;                                // 虚拟地址

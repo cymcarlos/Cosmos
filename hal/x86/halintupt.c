@@ -19,6 +19,7 @@ void dump_stack(void* stk)
     return;
 }
 
+// 初始化结构体
 void intfltdsc_t_init(intfltdsc_t *initp, u32_t flg, u32_t sts, uint_t prity, uint_t irq)
 {
     hal_spinlock_init(&initp->i_lock);
@@ -28,7 +29,7 @@ void intfltdsc_t_init(intfltdsc_t *initp, u32_t flg, u32_t sts, uint_t prity, ui
     initp->i_irqnr = irq;
     initp->i_deep = 0;
     initp->i_indx = 0;
-    list_init(&initp->i_serlist);
+    list_init(&initp->i_serlist);               //指向自己
     initp->i_sernr = 0;
     list_init(&initp->i_serthrdlst);
     initp->i_serthrdnr = 0;
@@ -56,7 +57,7 @@ PUBLIC void init_halintupt()
     init_descriptor();          //全局描述符         
     init_idt_descriptor();      //中断向量表
     init_intfltdsc();           // 中断处理框架了
-    init_i8259();
+    init_i8259();               // 中断控制器， 到这里还是不能处理中断的，所以要屏蔽所有的中断源
     // i8259_enabled_line(0);
     kprint("中断初始化成功\n");
     // die(0x400);
@@ -139,7 +140,7 @@ void hal_run_intflthandle(uint_t ifdnr, void *sframe)
         hal_sysdie("hal_run_intfdsc err");
         return;
     }
-
+    // 遍历
     list_for_each(lst, &ifdscp->i_serlist)
     {
         isdscp = list_entry(lst, intserdsc_t, s_list);
@@ -162,21 +163,26 @@ void hal_do_hwint(uint_t intnumb, void *krnlsframp)
         hal_sysdie("hal_do_hwint fail\n");
         return;
     }
+    //根据中断号获取中断异常描述符地址
     ifdscp = hal_retn_intfltdsc(intnumb);
     if (ifdscp == NULL)
     {
         hal_sysdie("hal_do_hwint ifdscp NULL\n");
         return;
     }
+    //对断异常描述符加锁并中断
     hal_spinlock_saveflg_cli(&ifdscp->i_lock, &cpuflg);
     ifdscp->i_indx++;
-    ifdscp->i_deep++;
+    ifdscp->i_deep++;   
+    //运行中断处理的回调函数
     hal_run_intflthandle(intnumb, krnlsframp);
     ifdscp->i_deep--;
-    hal_spinunlock_restflg_sti(&ifdscp->i_lock, &cpuflg);
+    //解锁并恢复中断状态
+    hal_spinunlock_restflg_sti(&ifdscp->i_lock, &cpuflg);       
     return;
 }
 
+// 异常分发器
 void hal_fault_allocator(uint_t faultnumb, void *krnlsframp) //eax,edx
 {
     adr_t fairvadrs;
@@ -211,6 +217,7 @@ sysstus_t hal_syscl_allocator(uint_t inr,void* krnlsframp)
     return ret;
 }
 
+// 中断分发器
 void hal_hwint_allocator(uint_t intnumb, void *krnlsframp)
 {
     cpuflg_t cpuflg;

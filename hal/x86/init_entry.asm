@@ -99,13 +99,13 @@ entry64:
 [BITS 32]
 ex64_GDT:
 enull_x64_dsc:	dq 0	
-ekrnl_c64_dsc:  dq 0x0020980000000000           ; 64-bit 内核代码段
-ekrnl_d64_dsc:  dq 0x0000920000000000           ; 64-bit 内核数据段   
-euser_c64_dsc:  dq 0x0020f80000000000           ; 64-bit 用户代码段
-euser_d64_dsc:  dq 0x0000f20000000000           ; 64-bit 用户数据段
+ekrnl_c64_dsc:  dq 0x0020980000000000           ; 64-bit 内核代码段   首地址 0x00000000   长度 0
+ekrnl_d64_dsc:  dq 0x0000920000000000           ; 64-bit 内核数据段   首地址 0x00000000   长度 0	
+euser_c64_dsc:  dq 0x0020f80000000000           ; 64-bit 用户代码段   首地址 0x00000000   长度 0		
+euser_d64_dsc:  dq 0x0000f20000000000           ; 64-bit 用户数据段   首地址 0x00000000   长度 0
 eGdtLen			equ	$ - enull_x64_dsc			; GDT长度
 eGdtPtr:		dw eGdtLen - 1					; GDT界限
-				dq ex64_GDT
+				dq ex64_GDT						; 只是为了权限？
 
 [section .start.data.pml4]
 
