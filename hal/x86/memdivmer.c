@@ -681,9 +681,11 @@ ret_step:
 	return retmsa;
 }
 
+//内存分配页面框架函数 
 msadsc_t *mm_divpages_fmwk(memmgrob_t *mmobjp, uint_t pages, uint_t *retrelpnr, uint_t mrtype, uint_t flgs)
 {
 
+	//返回mrtype对应的内存区结构的指针
 	memarea_t *marea = onmrtype_retn_marea(mmobjp, mrtype);
 	if (NULL == marea)
 	{
@@ -691,6 +693,7 @@ msadsc_t *mm_divpages_fmwk(memmgrob_t *mmobjp, uint_t pages, uint_t *retrelpnr, 
 		return NULL;
 	}
 	uint_t retpnr = 0;
+	//内存分配的核心函数
 	msadsc_t *retmsa = mm_divpages_core(marea, pages, &retpnr, flgs);
 	if (NULL == retmsa)
 	{
@@ -701,6 +704,12 @@ msadsc_t *mm_divpages_fmwk(memmgrob_t *mmobjp, uint_t pages, uint_t *retrelpnr, 
 	return retmsa;
 }
 
+//内存分配页面接口
+//mmobjp->内存管理数据结构指针
+//pages->请求分配的内存页面数
+//retrealpnr->存放实际分配内存页面数的指针
+//mrtype->请求的分配内存页面的内存区类型
+//flgs->请求分配的内存页面的标志位
 msadsc_t *mm_division_pages(memmgrob_t *mmobjp, uint_t pages, uint_t *retrealpnr, uint_t mrtype, uint_t flgs)
 {
 	if (NULL == mmobjp || NULL == retrealpnr || 0 == mrtype)
@@ -709,6 +718,7 @@ msadsc_t *mm_division_pages(memmgrob_t *mmobjp, uint_t pages, uint_t *retrealpnr
 	}
 
 	uint_t retpnr = 0;
+	//内存分配的框架函数
 	msadsc_t *retmsa = mm_divpages_fmwk(mmobjp, pages, &retpnr, mrtype, flgs);
 	if (NULL == retmsa)
 	{
@@ -1690,7 +1700,7 @@ void test_divsion_pages()
 		system_error("test_divsion_pages retmsa NULL\n");
 	}
 	write_one_mchkstuc(retmsa,retpnr);
-	kprint("所分配连续物理内存页面的首地址:%x,连续物理内存页面数:%d,连续物理内存大小:%dMB,CPU时钟周期:%d,PAGES:%d\n",
+	kprint("所分配连续物理内存页面的首地址:%x,连续物理内存页面数:%d,连续物理内存大小:%dMB,CPU时钟周期:%d,PAGmm_division_pagesES:%d\n",
 		((uint_t)retmsa->md_phyadrs.paf_padrs<<12),(uint_t)retpnr,(uint_t)((retpnr<<12)>>20),(uint_t)(etsc-stsc),(uint_t)pages);
 	*/
 	/*uint_t pi=1;pi<max;pi++*/
@@ -1711,7 +1721,7 @@ void test_divsion_pages()
 		etsc=x86_rdtsc();
 		if(NULL==retmsa)
 		{
-			break;//system_error("test_divsion_pages retmsa NULL\n");
+			break;//system_error("test_divsion_pages retmsa   \n");
 		}
 		write_one_mchkstuc(retmsa,retpnr);
 		kprint("所分配连续物理内存页面的首地址:%x,连续物理内存页面数:%d,连续物理内存大小:%dMB,CPU时钟周期:%d,PAGES:%d\n",

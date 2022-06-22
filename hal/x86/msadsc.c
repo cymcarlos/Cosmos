@@ -314,7 +314,7 @@ bool_t search_krloccupymsadsc_core(machbstart_t *mbsp)
 	{
 		return FALSE;
 	}
-	//搜索内核映像文件占用的内存页所对应msadsc_t结构
+	//搜索映像文件占用的内存页所对应msadsc_t结构
 	retschmnr = search_segment_occupymsadsc(msadstat, msanr, mbsp->mb_imgpadr, mbsp->mb_imgpadr + mbsp->mb_imgsz);
 	if (0 == retschmnr)
 	{

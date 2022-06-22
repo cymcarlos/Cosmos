@@ -13,7 +13,7 @@ void init_memmgr()
 	init_copy_pagesfvm();
 	init_search_krloccupymm(&kmachbsp);						// 初始化搜索内核占用的内存页面
 	init_merlove_mem();										// 初始化页面合并
-	init_memmgrob();
+	init_memmgrob();										// 内存管理结构
 	init_kmsob();
 	//test_divsion_pages();
 	//test_kmsob();
@@ -61,6 +61,7 @@ void init_memmgrob()
 	{
 		if (1 == mobp->mo_msadscstat[i].md_indxflgs.mf_uindx &&
 			MF_MOCTY_KRNL == mobp->mo_msadscstat[i].md_indxflgs.mf_mocty &&
+			
 			PAF_ALLOC == mobp->mo_msadscstat[i].md_phyadrs.paf_alloc)
 		{
 			aidx++;
