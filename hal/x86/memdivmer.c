@@ -45,9 +45,10 @@ void mm_update_memarea(memarea_t *malokp, uint_t pgnr, uint_t flgs)
 	return;
 }
 
+// TODO  后面再弄懂
 KLINE sint_t retn_divoder(uint_t pages)
 {
-	sint_t pbits = search_64rlbits((uint_t)pages) - 1;
+	sint_t pbits = search_64rlbits((uint_t)pages) - 1;		
 	if (pages & (pages - 1))
 	{
 		pbits++;
@@ -159,9 +160,10 @@ msadsc_t *mm_divpages_opmsadsc(msadsc_t *msastat, uint_t mnr)
 	{
 		system_error("mm_divpages_opmsadsc err4");
 	}
+	//单个msadsc_t结构的情况
 	if (mend == msastat)
 	{
-		msastat->md_indxflgs.mf_uindx++;
+		msastat->md_indxflgs.mf_uindx++;			// 分配计数
 		msastat->md_phyadrs.paf_alloc = PAF_ALLOC;
 		msastat->md_indxflgs.mf_olkty = MF_OLKTY_ODER;
 		msastat->md_odlink = mend;
@@ -169,6 +171,7 @@ msadsc_t *mm_divpages_opmsadsc(msadsc_t *msastat, uint_t mnr)
 	}
 	msastat->md_indxflgs.mf_uindx++;
 	msastat->md_phyadrs.paf_alloc = PAF_ALLOC;
+	//多个msadsc_t结构的情况下，末端msadsc_t结构也设置已分配状态
 	mend->md_indxflgs.mf_uindx++;
 	mend->md_phyadrs.paf_alloc = PAF_ALLOC;
 	msastat->md_indxflgs.mf_olkty = MF_OLKTY_ODER;
@@ -245,7 +248,9 @@ bool_t onmpgs_retn_bafhlst(memarea_t *malckp, uint_t pages, bafhlst_t **retrelba
 		return FALSE;
 	}
 	bafhlst_t *bafhstat = malckp->ma_mdmdata.dm_mdmlielst; //*relbfl=NULL,*divbfl=NULL;
+	//根据分配页面数计算出分配页面在dm_mdmlielst数组中下标
 	sint_t dividx = retn_divoder(pages);
+	// 各种检查
 	if (0 > dividx || MDIVMER_ARR_LMAX <= dividx)
 	{
 		//kprint("errrrrrr4\n");
@@ -259,6 +264,7 @@ bool_t onmpgs_retn_bafhlst(memarea_t *malckp, uint_t pages, bafhlst_t **retrelba
 		*retdivbafh = NULL;
 		return FALSE;
 	}
+	// 对应的页面总页数要大于  pages 且空闲页面数要>0
 	for (sint_t idx = dividx; idx < MDIVMER_ARR_LMAX; idx++)
 	{
 		if (bafhstat[idx].af_oderpnr >= pages && 0 < bafhstat[idx].af_fobjnr)
@@ -333,6 +339,7 @@ msadsc_t *mm_divipages_onbafhlst(bafhlst_t *bafhp)
 	return tmp;
 }
 
+//  获取 bafhp  开始地址和结束地址
 bool_t mm_retnmsaob_onbafhlst(bafhlst_t *bafhp, msadsc_t **retmstat, msadsc_t **retmend)
 {
 	if (NULL == bafhp || NULL == retmstat || NULL == retmend)
@@ -345,20 +352,21 @@ bool_t mm_retnmsaob_onbafhlst(bafhlst_t *bafhp, msadsc_t **retmstat, msadsc_t **
 		*retmend = NULL;
 		return FALSE;
 	}
-	if (list_is_empty_careful(&bafhp->af_frelst) == TRUE)
+	if (list_is_empty_careful(&bafhp->af_frelst) == TRUE)	// 空闲页是否为空
 	{
 		*retmstat = NULL;
 		*retmend = NULL;
 		return FALSE;
 	}
-	msadsc_t *tmp = list_entry(bafhp->af_frelst.next, msadsc_t, md_list);
-	list_del(&tmp->md_list);
-	bafhp->af_mobjnr--;
-	bafhp->af_fobjnr--;
-	bafhp->af_freindx++;
+	msadsc_t *tmp = list_entry(bafhp->af_frelst.next, msadsc_t, md_list);		//TODO  这里不懂
+	list_del(&tmp->md_list);	// 链表中间删除， 
+	bafhp->af_mobjnr--;			// 街头总面数 - 1
+	bafhp->af_fobjnr--;			// 空闲页面 -1 
+	bafhp->af_freindx++;		// 释放页数 -1
 	//bafhp->af_aobjnr++;
 	*retmstat = tmp;
 	*retmend = (msadsc_t *)tmp->md_odlink;
+	//如果只单个msadsc_t结构，那就是它本身 
 	if (MF_OLKTY_BAFH == tmp->md_indxflgs.mf_olkty)
 	{
 		*retmend = tmp;
@@ -504,6 +512,9 @@ bool_t mrdmb_add_msa_bafh(bafhlst_t *bafhp, msadsc_t *msastat, msadsc_t *msaend)
 	return TRUE;
 }
 
+//实际在bafhlst_t结构中分配页面
+// malckp 分配的内存区
+// pages 
 msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrelpnr, bafhlst_t *relbfl, bafhlst_t *divbfl)
 {
 	msadsc_t *retmsa = NULL;
@@ -518,19 +529,22 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 		*retrelpnr = 0;
 		return NULL;
 	}
+	//处理相等的情况
 	if (relbfl == divbfl)
 	{
+		//从bafhlst_t结构中获取msadsc_t结构的开始与结束地址
 		rets = mm_retnmsaob_onbafhlst(relbfl, &retmstat, &retmend);
 		if (FALSE == rets || NULL == retmstat || NULL == retmend)
 		{
 			*retrelpnr = 0;
 			return NULL;
 		}
-		if ((uint_t)((retmend - retmstat) + 1) != relbfl->af_oderpnr)
+		if ((uint_t)((retmend - retmstat) + 1) != relbfl->af_oderpnr)			// TODO 这里又不懂了
 		{
 			*retrelpnr = 0;
 			return NULL;
 		}
+		//设置msadsc_t结构的相关信息表示已经删除
 		retmsa = mm_divpages_opmsadsc(retmstat, relbfl->af_oderpnr);
 		if (NULL == retmsa)
 		{
@@ -578,12 +592,15 @@ msadsc_t *mm_reldivpages_onmarea(memarea_t *malckp, uint_t pages, uint_t *retrel
 	{
 		return NULL;
 	}
+	// 检查是否有足够的页面分配
 	if (scan_mapgsalloc_ok(malckp, pages) == FALSE)
 	{
 		*retrelpnr = 0;
 		return NULL;
 	}
 	bafhlst_t *retrelbhl = NULL, *retdivbhl = NULL;
+	//根据页面数在内存区的m_mdmlielst数组中找出其中请求分配页面的bafhlst_t结构（retrelbhl）和实际要在其中分配页面的bafhlst_t结构(retdivbhl）
+	// 有可能没有空闲 所以要有两个结构， 如果有空闲， 则 retrelbhl = retdivbhl
 	bool_t rets = onmpgs_retn_bafhlst(malckp, pages, &retrelbhl, &retdivbhl);
 	if (FALSE == rets)
 	{
@@ -591,6 +608,7 @@ msadsc_t *mm_reldivpages_onmarea(memarea_t *malckp, uint_t pages, uint_t *retrel
 		return NULL;
 	}
 	uint_t retpnr = 0;
+	//实际在bafhlst_t结构中分配页面
 	msadsc_t *retmsa = mm_reldpgsdivmsa_bafhl(malckp, pages, &retpnr, retrelbhl, retdivbhl);
 	if (NULL == retmsa)
 	{
@@ -651,7 +669,7 @@ msadsc_t *mm_divpages_core(memarea_t *mareap, uint_t pages, uint_t *retrealpnr, 
 		*retrealpnr = 0;
 		return NULL;
 	}
-	if (MA_TYPE_KRNL != mareap->ma_type && MA_TYPE_HWAD != mareap->ma_type)
+	if (MA_TYPE_KRNL != mareap->ma_type && MA_TYPE_HWAD != mareap->ma_type)				// TODO 不懂， 这里一直不搞用户区，难道是因为用户区还没有分配好吗  不是内核 且不是硬件区==》 那不就是用户区或则 （共享区吗）
 	{
 		*retrealpnr = 0;
 		return NULL;
@@ -665,6 +683,7 @@ msadsc_t *mm_divpages_core(memarea_t *mareap, uint_t pages, uint_t *retrealpnr, 
 	}
 	if (DMF_RELDIV == flgs)
 	{
+		// 
 		retmsa = mm_reldivpages_onmarea(mareap, pages, &retpnr);
 		goto ret_step;
 	}

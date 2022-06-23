@@ -13,7 +13,7 @@
 // 挂入链表类型
 #define MF_OLKTY_INIT (0)				// 初始化标识
 #define MF_OLKTY_ODER (1)
-#define MF_OLKTY_BAFH (2)
+#define MF_OLKTY_BAFH (2)               // 单个物理页挂入挂入
 #define MF_OLKTY_TOBJ (3)
 
 #define MF_LSTTY_LIST (0)
@@ -77,7 +77,7 @@ typedef struct s_PHYADRFLGS
 
 //内存空间地址描述符=== 物理页结构体
 typedef struct s_MSADSC{    
-	list_h_t   md_list;           //链表    
+	list_h_t   md_list;         //链表    
 	spinlock_t md_lock;         //保护自身的自旋锁    
 	msadflgs_t md_indxflgs;     //内存空间地址描述符标志    
 	phyadrflgs_t md_phyadrs;    //物理地址和标志    

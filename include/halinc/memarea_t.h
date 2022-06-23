@@ -56,10 +56,10 @@ typedef struct s_BAFHLST
     u32_t af_stus;         //状态 
     uint_t af_oder;        //页面数的位移量
     uint_t af_oderpnr;     //oder对应的页面数比如 oder为2那就是1<<2=4		这里一般是对应着dm_mdmlielst的下标， 保持一致
-    uint_t af_fobjnr;      //多少个空闲msadsc_t结构，即空闲页面				确实是空闲页面， 不过也是可以理解位 链表的头
-    uint_t af_mobjnr;      //此结构的msadsc_t结构总数，即此结构总页面
+    uint_t af_fobjnr;      //多少个空闲msadsc_t结构，即空闲页面				确实是空闲页面， 不过也是可以理解位 链表的头！！！，		分配时 - 1
+    uint_t af_mobjnr;      //此结构的msadsc_t结构总数，即此结构总页面		分配时-1						
     uint_t af_alcindx;     //此结构的分配计数
-    uint_t af_freindx;     //此结构的释放计数
+    uint_t af_freindx;     //此结构的释放计数							   分配时 + 1 
     list_h_t af_frelst;    //挂载此结构的空闲msadsc_t结构
     list_h_t af_alclst;    //挂载此结构已经分配的msadsc_t结构
 	list_h_t af_ovelst;
@@ -80,7 +80,7 @@ typedef struct s_MEMDIVMER
 	uint_t dm_mernr;
 	//bafhlst_t dm_mdmonelst[MDIVMER_ARR_OMAX];
 	//bafhlst_t dm_mdmblklst[MDIVMER_ARR_BMAX];
-	bafhlst_t dm_mdmlielst[MDIVMER_ARR_LMAX];
+	bafhlst_t dm_mdmlielst[MDIVMER_ARR_LMAX];			// 数组
 	bafhlst_t dm_onemsalst;
 }memdivmer_t;
 // 内存区类型

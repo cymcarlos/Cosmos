@@ -305,7 +305,9 @@ KLINE sint_t search_64rlbits(u64_t val)
 }
 
 KLINE sint_t search_32rlbits(u32_t val)
-{
+{    
+    // retbitnr -1 == 64 位  64个1 111...111   val 位 相当于，低位val个0
+    // 右移
     sint_t retbitnr = -1;
     __asm__ __volatile__(
         "bsrl %1,%0 \t\n"
