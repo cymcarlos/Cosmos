@@ -130,6 +130,7 @@ bafhlst_t *onma_retn_maxbafhlst(memarea_t *malckp)
 
 msadsc_t *mm_divpages_opmsadsc(msadsc_t *msastat, uint_t mnr)
 {
+
 	if (NULL == msastat || 0 == mnr)
 	{
 		return NULL;
@@ -143,6 +144,7 @@ msadsc_t *mm_divpages_opmsadsc(msadsc_t *msastat, uint_t mnr)
 	}
 
 	msadsc_t *mend = (msadsc_t *)msastat->md_odlink;
+	//单个msadsc_t结构的情况
 	if (MF_OLKTY_BAFH == msastat->md_indxflgs.mf_olkty)
 	{
 		mend = msastat;
@@ -364,8 +366,8 @@ bool_t mm_retnmsaob_onbafhlst(bafhlst_t *bafhp, msadsc_t **retmstat, msadsc_t **
 	bafhp->af_fobjnr--;			// 空闲页面 -1 
 	bafhp->af_freindx++;		// 释放页数 -1
 	//bafhp->af_aobjnr++;
-	*retmstat = tmp;
-	*retmend = (msadsc_t *)tmp->md_odlink;
+	*retmstat = tmp;							//  msadsc_t *    64 位指针的数值  开始msadsc_t 结构体首地址
+	*retmend = (msadsc_t *)tmp->md_odlink;		//  msadsc_t *    64 位指针的数值  结束msadsc_t 结构体首地址	
 	//如果只单个msadsc_t结构，那就是它本身 
 	if (MF_OLKTY_BAFH == tmp->md_indxflgs.mf_olkty)
 	{
@@ -519,7 +521,7 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 {
 	msadsc_t *retmsa = NULL;
 	bool_t rets = FALSE;
-	msadsc_t *retmstat = NULL, *retmend = NULL;
+	msadsc_t *retmstat = NULL, *retmend = NULL;		// 两个64 位指针
 	if (NULL == malckp || 1 > pages || NULL == retrelpnr || NULL == relbfl || NULL == divbfl)
 	{
 		return NULL;
@@ -530,16 +532,19 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 		return NULL;
 	}
 	//处理相等的情况
-	if (relbfl == divbfl)
+	if (relbfl == divbfl) 
 	{
 		//从bafhlst_t结构中获取msadsc_t结构的开始与结束地址
+		// &retmstat 指针的地址 
+		// &retmend  指针的地址
 		rets = mm_retnmsaob_onbafhlst(relbfl, &retmstat, &retmend);
 		if (FALSE == rets || NULL == retmstat || NULL == retmend)
 		{
 			*retrelpnr = 0;
 			return NULL;
 		}
-		if ((uint_t)((retmend - retmstat) + 1) != relbfl->af_oderpnr)			// TODO 这里又不懂了
+		// TODO 这里不懂
+		if ((uint_t)((retmend - retmstat) + 1) != relbfl->af_oderpnr)			
 		{
 			*retrelpnr = 0;
 			return NULL;
@@ -674,7 +679,7 @@ msadsc_t *mm_divpages_core(memarea_t *mareap, uint_t pages, uint_t *retrealpnr, 
 		*retrealpnr = 0;
 		return NULL;
 	}
-	knl_spinlock_cli(&mareap->ma_lock, &cpuflg);
+	knl_spinlock_cli(&mareap->ma_lock, &cpuflg);			// 自旋锁枷锁
 
 	if (DMF_MAXDIV == flgs)
 	{
@@ -683,7 +688,7 @@ msadsc_t *mm_divpages_core(memarea_t *mareap, uint_t pages, uint_t *retrealpnr, 
 	}
 	if (DMF_RELDIV == flgs)
 	{
-		// 
+		//分配内存
 		retmsa = mm_reldivpages_onmarea(mareap, pages, &retpnr);
 		goto ret_step;
 	}
@@ -695,7 +700,7 @@ ret_step:
 		mm_update_memarea(mareap, retpnr, 0);
 		mm_update_memmgrob(retpnr, 0);
 	}
-	knl_spinunlock_sti(&mareap->ma_lock, &cpuflg);
+	knl_spinunlock_sti(&mareap->ma_lock, &cpuflg);			// 解锁
 	*retrealpnr = retpnr;
 	return retmsa;
 }
