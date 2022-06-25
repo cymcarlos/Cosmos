@@ -81,7 +81,7 @@ typedef struct s_MSADSC{
 	spinlock_t md_lock;         //保护自身的自旋锁    
 	msadflgs_t md_indxflgs;     //内存空间地址描述符标志    
 	phyadrflgs_t md_phyadrs;    //物理地址和标志    
-	void* md_odlink;            //相邻且相同大小msadsc的指针
+	void* md_odlink;            //相邻且相同大小msadsc的指针， 一般是指向结束地址
 }__attribute__((packed)) msadsc_t;
 
 

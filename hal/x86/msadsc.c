@@ -91,7 +91,8 @@ void write_one_msadsc(msadsc_t *msap, u64_t phyadr)
 	return;
 }
 
-
+// msavstart 这里的数组地址是连续的，  存放的是指针（指向msadsc_t结构体的指针）的数组
+// {p0, p1, p2, p3...pn} , p0所占大小刚好是和操作系统位数一样 这里是 64 位
 u64_t init_msadsc_core(machbstart_t *mbsp, msadsc_t *msavstart, u64_t msanr)
 {
 	//获取phymmarge_t结构数组开始地址， 虚拟地址

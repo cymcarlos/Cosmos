@@ -416,7 +416,7 @@ bool_t merlove_scan_continumsadsc(memarea_t *mareap, msadsc_t *fmstat, uint_t *f
 			}
 			*fntmsanr = tmidx + retfindmnr + 1;				// 更新开始扫描的物理页下标  retfindmnr = 0 则一个连续都没有
 			*retmsastatp = &msastat[tmidx];					// 连续的开始地址
-			*retmsaendp = &msastat[tmidx + retfindmnr];		// 连续的结束地址
+			*retmsaendp = &msastat[tmidx + retfindmnr];		// 连续的结束地址， 闭区间， 结束地址就包括自己的
 			*retfmnr = retfindmnr + 1;						// 连续的个数
 			return TRUE;
 		}
@@ -654,7 +654,7 @@ bool_t continumsadsc_add_bafhlst(memarea_t *mareap, bafhlst_t *bafhp, msadsc_t *
 		return FALSE;
 	}
 	fstat->md_indxflgs.mf_olkty = MF_OLKTY_ODER;		// TODO	标记为开始？
-	//开始的msadsc_t结构指向最后的msadsc_t结构
+	//开始的msadsc_t结构的md_odlink指向最后的msadsc_t结构的首地址
 	fstat->md_odlink = fend;
 	// fstat==fend
 	fend->md_indxflgs.mf_olkty = MF_OLKTY_BAFH;
@@ -701,7 +701,10 @@ bool_t continumsadsc_mareabafh_core(memarea_t *mareap, msadsc_t **rfstat, msadsc
 	// 不是用户区
 	if ((BAFH_STUS_DIVP == bafhp->af_stus || BAFH_STUS_DIVM == bafhp->af_stus) && MA_TYPE_PROC != mareap->ma_type)
 	{
-		tmpmnr = retval - bafhp->af_oderpnr;	//剩余的长度
+		// 剩余的长度
+		// 如果是 retval = 9，  不是2的倍数， 应该是 9 - 8 = 1 页，  8 页挂在3下标上
+		// 1 页就直接挂0下标的上
+		tmpmnr = retval - bafhp->af_oderpnr;	
 		if (continumsadsc_add_bafhlst(mareap, bafhp, mstat, &mstat[bafhp->af_oderpnr - 1], bafhp->af_oderpnr) == FALSE)
 		{
 			return FALSE;
