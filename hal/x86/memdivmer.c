@@ -216,18 +216,23 @@ sint_t mm_merpages_opmsadsc(bafhlst_t *bafh, msadsc_t *freemsa, uint_t freepgs)
 	{
 		system_error("mm_merpages_opmsadsc err6\n");
 	}
+	//处理只有一个单页的情况
 	if (freemsa == fmend)
 	{
+		//页面的分配计数减1
 		freemsa->md_indxflgs.mf_uindx--;
+		//如果依然大于0说明它是共享页面 直接返回1指示不需要进行下一步操作
 		if (0 < freemsa->md_indxflgs.mf_uindx)
 		{
 			return 1;
 		}
+		//设置页未分配的标志
 		freemsa->md_phyadrs.paf_alloc = PAF_NO_ALLOC;
 		freemsa->md_indxflgs.mf_olkty = MF_OLKTY_BAFH;
 		freemsa->md_odlink = bafh;
 		return 2;
 	}
+	//多个页面的起始页面和结束页面都要减一
 	freemsa->md_indxflgs.mf_uindx--;
 	fmend->md_indxflgs.mf_uindx--;
 	if (0 < freemsa->md_indxflgs.mf_uindx)
@@ -543,7 +548,7 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 			*retrelpnr = 0;
 			return NULL;
 		}
-		// TODO 这里不懂
+		// TODO 这里不懂 1 = 1
 		if ((uint_t)((retmend - retmstat) + 1) != relbfl->af_oderpnr)			
 		{
 			*retrelpnr = 0;
@@ -559,12 +564,14 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 		*retrelpnr = relbfl->af_oderpnr;
 		return retmsa;
 	}
+	//处理不等的情况    //从bafhlst_t结构中获取msadsc_t结构的开始与结束地
 	rets = mm_retnmsaob_onbafhlst(divbfl, &retmstat, &retmend);
 	if (FALSE == rets || NULL == retmstat || NULL == retmend)
 	{
 		*retrelpnr = 0;
 		return NULL;
 	}
+	// (retmend - retmstat) 这里算是按结构体
 	if ((uint_t)((retmend - retmstat) + 1) != divbfl->af_oderpnr)
 	{
 		*retrelpnr = 0;
@@ -1044,7 +1051,10 @@ sint_t mm_cmsa1blk_isok(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me)
 	}
 	return 2;
 }
-
+// _1ms 释放开始地址
+// _1me 释放结束地址
+// _2ms 要检查的开始地址 
+// _2me 要检查的结束地址
 sint_t mm_cmsa2blk_isok(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me, msadsc_t *_2ms, msadsc_t *_2me)
 {
 	if (NULL == bafh || NULL == _1ms || NULL == _1me ||
@@ -1165,7 +1175,8 @@ bool_t mm_clear_2msaolflg(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me, msads
 	_2me->md_odlink = bafh;
 	return TRUE;
 }
-
+// rfnms 释放的开始地址
+// rfnme 结束地址
 sint_t mm_find_cmsa2blk(bafhlst_t *fbafh, msadsc_t **rfnms, msadsc_t **rfnme)
 {
 	if (NULL == fbafh || NULL == rfnms || NULL == rfnme)
@@ -1268,9 +1279,12 @@ bool_t mm_merpages_onbafhlst(msadsc_t *freemsa, uint_t freepgs, bafhlst_t *relbf
 	sint_t rets = 0;
 	msadsc_t *mnxs = freemsa, *mnxe = &freemsa[freepgs - 1];
 	bafhlst_t *tmpbf = relbf;
+	 //从实际要开始遍历，直到最高的那个bafhlst_t结构
 	for (; tmpbf < merbf; tmpbf++)
 	{
-
+	//查看最大地址连续、且空闲msadsc_t结构，如释放的是第0个msadsc_t结构我们就去查找第1个msadsc_t结构是否空闲，且与第0个msadsc_t结构的地址是不是连续的
+		// mnxs 开始地址
+		// mnxe 结束地址
 		rets = mm_find_cmsa2blk(tmpbf, &mnxs, &mnxe);
 		if (1 == rets)
 		{
@@ -1281,7 +1295,7 @@ bool_t mm_merpages_onbafhlst(msadsc_t *freemsa, uint_t freepgs, bafhlst_t *relbf
 			system_error("mm_find_cmsa2blk retn 0\n");
 		}
 	}
-
+	//把合并的msadsc_t结构（从mnxs到mnxe）加入到对应的bafhlst_t结构中
 	if (mpobf_add_msadsc(tmpbf, mnxs, mnxe) == FALSE)
 	{
 		return FALSE;
@@ -1325,6 +1339,7 @@ bool_t mm_merpages_onmarea(memarea_t *malckp, msadsc_t *freemsa, uint_t freepgs)
 
 	bafhlst_t *retrelbf = NULL, *retmerbf = NULL;
 	bool_t rets = FALSE;
+	 //根据freepgs返回请求释放的和最大释放的bafhlst_t结构指针
 	rets = onfpgs_retn_bafhlst(malckp, freepgs, &retrelbf, &retmerbf);
 	if (FALSE == rets)
 	{
@@ -1334,6 +1349,7 @@ bool_t mm_merpages_onmarea(memarea_t *malckp, msadsc_t *freemsa, uint_t freepgs)
 	{
 		return FALSE;
 	}
+	//设置msadsc_t结构的信息，完成释放，返回1表示不需要下一步合并操作，返回2表示要进行合并操作
 	sint_t mopms = mm_merpages_opmsadsc(retrelbf, freemsa, freepgs);
 	if (2 == mopms)
 	{
@@ -1378,13 +1394,13 @@ bool_t mm_merpages_core(memarea_t *marea, msadsc_t *freemsa, uint_t freepgs)
 }
 
 bool_t mm_merpages_fmwk(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
-{
+{//获取要释放msadsc_t结构所在的内存区
 	memarea_t *marea = onfrmsa_retn_marea(mmobjp, freemsa, freepgs);
 	if (NULL == marea)
 	{
 		return FALSE;
 	}
-
+ //释放内存页面的核心函数
 	bool_t rets = mm_merpages_core(marea, freemsa, freepgs);
 	if (FALSE == rets)
 	{
@@ -1392,7 +1408,9 @@ bool_t mm_merpages_fmwk(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
 	}
 	return rets;
 }
-
+//mmobjp->内存管理数据结构指针
+//freemsa->释放内存页面对应的首个msadsc_t结构指针
+//freepgs->请求释放的内存页面数
 bool_t mm_merge_pages(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
 {
 	if (NULL == mmobjp || NULL == freemsa || 1 > freepgs)
