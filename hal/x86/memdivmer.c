@@ -6,6 +6,7 @@
 #include "cosmostypes.h"
 #include "cosmosmctrl.h"
 
+// 更新整个系统内存结构信息 
 void mm_update_memmgrob(uint_t realpnr, uint_t flgs)
 {
 	cpuflg_t cpuflg;
@@ -26,8 +27,9 @@ void mm_update_memmgrob(uint_t realpnr, uint_t flgs)
 	return;
 }
 
+// 更新空闲页数 和 已经分配页数
 void mm_update_memarea(memarea_t *malokp, uint_t pgnr, uint_t flgs)
-{
+{	
 	if (NULL == malokp)
 	{
 		return;
@@ -49,7 +51,7 @@ void mm_update_memarea(memarea_t *malokp, uint_t pgnr, uint_t flgs)
 KLINE sint_t retn_divoder(uint_t pages)
 {
 	sint_t pbits = search_64rlbits((uint_t)pages) - 1;		
-	if (pages & (pages - 1))
+	if (pages & (pages - 1))  
 	{
 		pbits++;
 	}
@@ -78,7 +80,7 @@ memarea_t *onfrmsa_retn_marea(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t free
 		return NULL;
 	}
 	msadsc_t *fmend = (msadsc_t *)freemsa->md_odlink;
-	if (((uint_t)(fmend - freemsa) + 1) != freepgs)
+	if (((uint_t)(fmend - freemsa) + 1) != freepgs)				// 这里也说明了刚好是2的倍数
 	{
 		return NULL;
 	}
@@ -287,13 +289,16 @@ bool_t onmpgs_retn_bafhlst(memarea_t *malckp, uint_t pages, bafhlst_t **retrelba
 	return FALSE;
 }
 
+// 返回开始和结束的bafhlst
 bool_t onfpgs_retn_bafhlst(memarea_t *malckp, uint_t freepgs, bafhlst_t **retrelbf, bafhlst_t **retmerbf)
 {
 	if (NULL == malckp || 1 > freepgs || NULL == retrelbf || NULL == retmerbf)
 	{
 		return FALSE;
 	}
+	// 内存区的bafhlst数组
 	bafhlst_t *bafhstat = malckp->ma_mdmdata.dm_mdmlielst;
+	// 对应的下标类似  1 的下标是 0 ， 2的下标是1 ， 
 	sint_t dividx = retn_divoder(freepgs);
 	if (0 > dividx || MDIVMER_ARR_LMAX <= dividx)
 	{
@@ -346,7 +351,7 @@ msadsc_t *mm_divipages_onbafhlst(bafhlst_t *bafhp)
 	return tmp;
 }
 
-//  获取 bafhp  开始地址和结束地址
+//  获取 bafhp 的 af_frelsd 开始地址和结束地址
 bool_t mm_retnmsaob_onbafhlst(bafhlst_t *bafhp, msadsc_t **retmstat, msadsc_t **retmend)
 {
 	if (NULL == bafhp || NULL == retmstat || NULL == retmend)
@@ -365,7 +370,8 @@ bool_t mm_retnmsaob_onbafhlst(bafhlst_t *bafhp, msadsc_t **retmstat, msadsc_t **
 		*retmend = NULL;
 		return FALSE;
 	}
-	msadsc_t *tmp = list_entry(bafhp->af_frelst.next, msadsc_t, md_list);		//TODO  这里不懂
+	//这里是算出msadsc_t的首地址， 其实next就是了， 有点多余的意思，因为 md_list 偏移本身就是0
+	msadsc_t *tmp = list_entry(bafhp->af_frelst.next, msadsc_t, md_list);		
 	list_del(&tmp->md_list);	// 链表中间删除， 
 	bafhp->af_mobjnr--;			// 街头总面数 - 1
 	bafhp->af_fobjnr--;			// 空闲页面 -1 
@@ -483,6 +489,7 @@ uint_t chek_divlenmsa(msadsc_t *msastat, msadsc_t *msaend, uint_t mnr)
 	return ok;
 }
 
+// msastat  到 msaend， 加入到 bafhp中
 bool_t mrdmb_add_msa_bafh(bafhlst_t *bafhp, msadsc_t *msastat, msadsc_t *msaend)
 {
 	if (NULL == bafhp || NULL == msastat || NULL == msaend)
@@ -548,7 +555,7 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 			*retrelpnr = 0;
 			return NULL;
 		}
-		// TODO 这里不懂 1 = 1
+
 		if ((uint_t)((retmend - retmstat) + 1) != relbfl->af_oderpnr)			
 		{
 			*retrelpnr = 0;
@@ -571,23 +578,27 @@ msadsc_t *mm_reldpgsdivmsa_bafhl(memarea_t *malckp, uint_t pages, uint_t *retrel
 		*retrelpnr = 0;
 		return NULL;
 	}
-	// (retmend - retmstat) 这里算是按结构体
+	// (retmend - retmstat) 这里算是按结构体  运算的时候不是 按地址运算， 而是按结构体的个数去运算。
+	// msadsc_t *retmsa ,   retmend = retmsa + N == > 所以 retmend -  retmsa = N 
 	if ((uint_t)((retmend - retmstat) + 1) != divbfl->af_oderpnr)
 	{
 		*retrelpnr = 0;
 		return NULL;
 	}
-	uint_t divnr = divbfl->af_oderpnr;
+	uint_t divnr = divbfl->af_oderpnr;		 //页数
+	// 一直对折， 直到遇上了relbfl， 说明页数是对的
 	for (bafhlst_t *tmpbfl = divbfl - 1; tmpbfl >= relbfl; tmpbfl--)
 	{
+		//开始分割连续的msadsc_t结构，把剩下的一段连续的msadsc_t结构加入到对应该bafhlst_t结构中
+		// tmpbfl->af_oderpnr 是 af_oderpnr /2 的值， 相当于对半分， 后面的一半 加入新的tmpbfl
 		if (mrdmb_add_msa_bafh(tmpbfl, &retmstat[tmpbfl->af_oderpnr], (msadsc_t *)retmstat->md_odlink) == FALSE)
 		{
 			system_error("mrdmb_add_msa_bafh fail\n");
 		}
-		retmstat->md_odlink = &retmstat[tmpbfl->af_oderpnr - 1];
+		retmstat->md_odlink = &retmstat[tmpbfl->af_oderpnr - 1];		// 结束地址变更， ===>这里是折叠了一半
 		divnr -= tmpbfl->af_oderpnr;
 	}
-
+	//设置msadsc_t结构的相关信息表示已经删除
 	retmsa = mm_divpages_opmsadsc(retmstat, divnr);
 	if (NULL == retmsa)
 	{
@@ -707,6 +718,7 @@ ret_step:
 		mm_update_memarea(mareap, retpnr, 0);
 		mm_update_memmgrob(retpnr, 0);
 	}
+	//内存区解锁
 	knl_spinunlock_sti(&mareap->ma_lock, &cpuflg);			// 解锁
 	*retrealpnr = retpnr;
 	return retmsa;
@@ -941,6 +953,7 @@ msadsc_t *mm_divpages_procmarea(memmgrob_t *mmobjp, uint_t pages, uint_t *retrea
 	return retmsa;
 }
 
+//  扫描， 看看是否ok
 bool_t scan_freemsa_isok(msadsc_t *freemsa, uint_t freepgs)
 {
 	if (NULL == freemsa || 1 > freepgs)
@@ -1175,7 +1188,7 @@ bool_t mm_clear_2msaolflg(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me, msads
 	_2me->md_odlink = bafh;
 	return TRUE;
 }
-// rfnms 释放的开始地址
+// rfnms 释放的开始地址   在bfbafh  查找有没有连续的地址
 // rfnme 结束地址
 sint_t mm_find_cmsa2blk(bafhlst_t *fbafh, msadsc_t **rfnms, msadsc_t **rfnme)
 {
@@ -1184,7 +1197,7 @@ sint_t mm_find_cmsa2blk(bafhlst_t *fbafh, msadsc_t **rfnms, msadsc_t **rfnme)
 		return 0;
 	}
 	msadsc_t *freemstat = *rfnms;
-	msadsc_t *freemend = *rfnme;
+	msadsc_t *freemend  = *rfnme;
 	if (1 > fbafh->af_fobjnr)
 	{
 		return 1;
@@ -1282,9 +1295,9 @@ bool_t mm_merpages_onbafhlst(msadsc_t *freemsa, uint_t freepgs, bafhlst_t *relbf
 	 //从实际要开始遍历，直到最高的那个bafhlst_t结构
 	for (; tmpbf < merbf; tmpbf++)
 	{
-	//查看最大地址连续、且空闲msadsc_t结构，如释放的是第0个msadsc_t结构我们就去查找第1个msadsc_t结构是否空闲，且与第0个msadsc_t结构的地址是不是连续的
-		// mnxs 开始地址
-		// mnxe 结束地址
+		//查看最大地址连续、且空闲msadsc_t结构，如释放的是第0个msadsc_t结构我们就去查找第1个msadsc_t结构是否空闲，且与第0个msadsc_t结构的地址是不是连续的
+		// mnxs 开始地址 头
+		// mnxe 结束地址 尾巴
 		rets = mm_find_cmsa2blk(tmpbf, &mnxs, &mnxe);
 		if (1 == rets)
 		{
@@ -1312,6 +1325,7 @@ bool_t mm_merpages_onmarea(memarea_t *malckp, msadsc_t *freemsa, uint_t freepgs)
 
 	bafhlst_t *prcbf = NULL;
 	sint_t pocs = 0;
+	// 如果是用户区
 	if (MA_TYPE_PROC == malckp->ma_type)
 	{
 		prcbf = &malckp->ma_mdmdata.dm_onemsalst;
@@ -1339,7 +1353,8 @@ bool_t mm_merpages_onmarea(memarea_t *malckp, msadsc_t *freemsa, uint_t freepgs)
 
 	bafhlst_t *retrelbf = NULL, *retmerbf = NULL;
 	bool_t rets = FALSE;
-	 //根据freepgs返回请求释放的和最大释放的bafhlst_t结构指针
+	 // 根据freepgs返回请求释放的和最大释放的bafhlst_t结构指针
+	 // retrelbf开始的地址  结束的地址
 	rets = onfpgs_retn_bafhlst(malckp, freepgs, &retrelbf, &retmerbf);
 	if (FALSE == rets)
 	{
@@ -1352,7 +1367,7 @@ bool_t mm_merpages_onmarea(memarea_t *malckp, msadsc_t *freemsa, uint_t freepgs)
 	//设置msadsc_t结构的信息，完成释放，返回1表示不需要下一步合并操作，返回2表示要进行合并操作
 	sint_t mopms = mm_merpages_opmsadsc(retrelbf, freemsa, freepgs);
 	if (2 == mopms)
-	{
+	{	// 真的合并
 		rets = mm_merpages_onbafhlst(freemsa, freepgs, retrelbf, retmerbf);
 		if (TRUE == rets)
 		{
@@ -1379,16 +1394,18 @@ bool_t mm_merpages_core(memarea_t *marea, msadsc_t *freemsa, uint_t freepgs)
 	{
 		return FALSE;
 	}
+	// 一些常规检查
 	if (scan_freemsa_isok(freemsa, freepgs) == FALSE)
 	{
 		return FALSE;
 	}
 	bool_t rets = FALSE;
 	cpuflg_t cpuflg;
-
+	// 加锁
 	knl_spinlock_cli(&marea->ma_lock, &cpuflg);
-
+	//针对一个内存区进行操作
 	rets = mm_merpages_onmarea(marea, freemsa, freepgs);
+	// 解锁
 	knl_spinunlock_sti(&marea->ma_lock, &cpuflg);
 	return rets;
 }
@@ -1410,7 +1427,7 @@ bool_t mm_merpages_fmwk(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
 }
 //mmobjp->内存管理数据结构指针
 //freemsa->释放内存页面对应的首个msadsc_t结构指针
-//freepgs->请求释放的内存页面数
+//freepgs->请求释放的内存页面数			这里看起来就是2的倍数
 bool_t mm_merge_pages(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
 {
 	if (NULL == mmobjp || NULL == freemsa || 1 > freepgs)

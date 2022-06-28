@@ -296,6 +296,7 @@ KLINE u64_t x86_rdtsc(void)
 
 KLINE sint_t search_64rlbits(u64_t val)
 {
+    //  bsrq  val  111...(64个1) 
     sint_t retbitnr = -1;
     __asm__ __volatile__(
         "bsrq %1,%q0 \t\n"

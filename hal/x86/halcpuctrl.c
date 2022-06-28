@@ -153,6 +153,7 @@ void knl_spinlock_unlock(spinlock_t *lock)
     return;
 }
 
+// TODO 这里也是要弄懂的
 void knl_spinlock_cli(spinlock_t *lock, cpuflg_t *cpuflg)
 {
     __asm__ __volatile__(

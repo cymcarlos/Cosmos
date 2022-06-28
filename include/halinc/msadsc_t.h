@@ -12,8 +12,8 @@
 
 // 挂入链表类型
 #define MF_OLKTY_INIT (0)				// 初始化标识
-#define MF_OLKTY_ODER (1)
-#define MF_OLKTY_BAFH (2)               // 单个物理页挂入挂入
+#define MF_OLKTY_ODER (1)               // TODO 这个是啥， 到底
+#define MF_OLKTY_BAFH (2)               // TODO 单个物理页挂入挂入 ？？？ 这个到底是啥
 #define MF_OLKTY_TOBJ (3)
 
 #define MF_LSTTY_LIST (0)
