@@ -932,7 +932,7 @@ ret_step:
 msadsc_t *mm_divpages_procmarea(memmgrob_t *mmobjp, uint_t pages, uint_t *retrealpnr)
 {
 	msadsc_t *retmsa = NULL;
-	uint_t retpnr = 0;
+	uint_t   retpnr  = 0;
 	if (NULL == mmobjp || 1 != pages || NULL == retrealpnr)
 	{
 		return NULL;
