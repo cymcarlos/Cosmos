@@ -14,7 +14,7 @@ void init_memmgr()
 	init_search_krloccupymm(&kmachbsp);						// 初始化搜索内核占用的内存页面
 	init_merlove_mem();										// 初始化页面合并
 	init_memmgrob();										// 内存管理结构
-	init_kmsob();
+	init_kmsob();											// 初始化 内存容器
 	//test_divsion_pages();
 	//test_kmsob();
 	//free_all_mchkstuc();

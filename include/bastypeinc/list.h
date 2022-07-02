@@ -95,6 +95,7 @@ KLINE bool_t list_is_last(const list_h_t* list, const list_h_t* head)
 	return FALSE;
 }
 
+// 是否空
 KLINE bool_t list_is_empty_careful(const list_h_t *head)
 {
 	list_h_t *next = head->next;

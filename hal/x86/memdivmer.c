@@ -932,7 +932,7 @@ ret_step:
 msadsc_t *mm_divpages_procmarea(memmgrob_t *mmobjp, uint_t pages, uint_t *retrealpnr)
 {
 	msadsc_t *retmsa = NULL;
-	uint_t   retpnr  = 0;
+	uint_t retpnr = 0;
 	if (NULL == mmobjp || 1 != pages || NULL == retrealpnr)
 	{
 		return NULL;
@@ -1064,6 +1064,8 @@ sint_t mm_cmsa1blk_isok(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me)
 	}
 	return 2;
 }
+
+// 判断段地址是否连续
 // _1ms 释放开始地址
 // _1me 释放结束地址
 // _2ms 要检查的开始地址 
@@ -1167,6 +1169,7 @@ bool_t chek_cl2molkflg(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me, msadsc_t
 	return TRUE;
 }
 
+// 连接在一起， 且重置状态
 bool_t mm_clear_2msaolflg(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me, msadsc_t *_2ms, msadsc_t *_2me)
 {
 	if (NULL == bafh || NULL == _1ms || NULL == _1me || NULL == _2ms || NULL == _2me)
@@ -1182,14 +1185,15 @@ bool_t mm_clear_2msaolflg(bafhlst_t *bafh, msadsc_t *_1ms, msadsc_t *_1me, msads
 	_1me->md_odlink = NULL;
 	_2ms->md_indxflgs.mf_olkty = MF_OLKTY_INIT;
 	_2ms->md_odlink = NULL;
-	_1ms->md_indxflgs.mf_olkty = MF_OLKTY_ODER;
+	_1ms->md_indxflgs.mf_olkty = MF_OLKTY_ODER;					// 应该是地址的头？
 	_1ms->md_odlink = _2me;
-	_2me->md_indxflgs.mf_olkty = MF_OLKTY_BAFH;
+	_2me->md_indxflgs.mf_olkty = MF_OLKTY_BAFH;					// 地址的尾巴？
 	_2me->md_odlink = bafh;
 	return TRUE;
 }
 // rfnms 释放的开始地址   在bfbafh  查找有没有连续的地址
-// rfnme 结束地址
+// rfnme 结束地址		
+// 在fbafh里面检查有没有连在一起的数据， 有则连在一起， 修正数据
 sint_t mm_find_cmsa2blk(bafhlst_t *fbafh, msadsc_t **rfnms, msadsc_t **rfnme)
 {
 	if (NULL == fbafh || NULL == rfnms || NULL == rfnme)
@@ -1209,8 +1213,9 @@ sint_t mm_find_cmsa2blk(bafhlst_t *fbafh, msadsc_t **rfnms, msadsc_t **rfnme)
 	{
 		tmpmsa = list_entry(tmplst, msadsc_t, md_list);
 		rets = mm_cmsa2blk_isok(fbafh, freemstat, freemend, tmpmsa, &tmpmsa[fbafh->af_oderpnr - 1]);
-		if (2 == rets || 4 == rets)
+		if (2 == rets || 4 == rets)		// 2 和 4 表示连续
 		{
+			// 脱钩
 			blkms = tmpmsa;
 			blkme = &tmpmsa[fbafh->af_oderpnr - 1];
 			list_del(&tmpmsa->md_list);
@@ -1226,6 +1231,7 @@ step1:
 	}
 	if (2 == rets)
 	{
+		// 连接在一起， 且重置状态， 最后的一个msadsc_t  md_odlink指向fbafh + 1
 		if (mm_clear_2msaolflg(fbafh + 1, freemstat, freemend, blkms, blkme) == TRUE)
 		{
 			if (chek_cl2molkflg(fbafh + 1, freemstat, freemend, blkms, blkme) == FALSE)
@@ -1370,7 +1376,7 @@ bool_t mm_merpages_onmarea(memarea_t *malckp, msadsc_t *freemsa, uint_t freepgs)
 	{	// 真的合并
 		rets = mm_merpages_onbafhlst(freemsa, freepgs, retrelbf, retmerbf);
 		if (TRUE == rets)
-		{
+		{	// 更新数据
 			mm_update_memarea(malckp, freepgs, 1);
 			mm_update_memmgrob(freepgs, 1);
 			return rets;
@@ -1426,8 +1432,8 @@ bool_t mm_merpages_fmwk(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
 	return rets;
 }
 //mmobjp->内存管理数据结构指针
-//freemsa->释放内存页面对应的首个msadsc_t结构指针
-//freepgs->请求释放的内存页面数			这里看起来就是2的倍数
+//freemsa->释放内存页面对应的首个msadsc_t  结构指针
+//freepgs->请求释放的内存页面数			   这里看起来就是2的倍数
 bool_t mm_merge_pages(memmgrob_t *mmobjp, msadsc_t *freemsa, uint_t freepgs)
 {
 	if (NULL == mmobjp || NULL == freemsa || 1 > freepgs)

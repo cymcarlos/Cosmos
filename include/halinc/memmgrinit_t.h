@@ -25,7 +25,7 @@ typedef struct s_MEMMGROB
 	u64_t mo_msanr;						// 物理内存页页数
 	memarea_t* mo_mareastat;			// 内存分区信息结构体开始地址 memarea_t数组的开始地址(虚拟地址)
 	u64_t mo_mareanr;					//  内存分区数量    
-	kmsobmgrhed_t mo_kmsobmgr;
+	kmsobmgrhed_t mo_kmsobmgr;			//  内存容器最高最高结构体
 	void* mo_privp;
 	void* mo_extp;
 }memmgrob_t;
