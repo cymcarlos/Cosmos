@@ -59,15 +59,15 @@ typedef struct KVMEMCBOXMGR
 }kvmemcboxmgr_t;
 
 
+// 虚拟空间类型 
+#define KMV_TEXT_TYPE 1		// TODO 文件区?
+#define KMV_DATA_TYPE 2		// 数据区
+#define KMV_BSS_TYPE 4		// TODO BSS区是啥
+#define KMV_HEAP_TYPE 8		// 堆区
+#define KMV_STACK_TYPE 16	// 栈区
+#define KMV_BIN_TYPE 64     // 二进制区
 
-#define KMV_TEXT_TYPE 1
-#define KMV_DATA_TYPE 2
-#define KMV_BSS_TYPE 4
-#define KMV_HEAP_TYPE 8
-#define KMV_STACK_TYPE 16
-#define KMV_BIN_TYPE 64
-
-#define THREAD_HEAPADR_START 0x100000000
+#define THREAD_HEAPADR_START 0x100000000			// 进程堆得开始地址
 
 typedef struct KVMEMCBOX 
 {

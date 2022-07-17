@@ -264,7 +264,7 @@ bool_t kvma_inituserspace_virmemadrs(virmemadrs_t *vma)
 	heapkmvdc->kva_mcstruct = vma;
 	heapkmvdc->kva_maptype = KMV_HEAP_TYPE;
 
- 	//栈虚拟区间开始地址0x1000USER_VIRTUAL_ADDRESS_END - 0x40000000
+ 	//栈虚拟区间开始地址0x1000U SER_VIRTUAL_ADDRESS_END - 0x40000000
 	// 
 	stackkmvdc->kva_start = PAGE_ALIGN(USER_VIRTUAL_ADDRESS_END - 0x40000000);
 	stackkmvdc->kva_end = USER_VIRTUAL_ADDRESS_END;
@@ -274,9 +274,9 @@ bool_t kvma_inituserspace_virmemadrs(virmemadrs_t *vma)
 	krlspinlock_lock(&vma->vs_lock);
 	vma->vs_isalcstart = USER_VIRTUAL_ADDRESS_START;
 	vma->vs_isalcend = USER_VIRTUAL_ADDRESS_END;
-	//设置虚拟地址空间的开始区间为kmvdc
+	//设置虚拟地址空间的开始空间为kmvdc
 	vma->vs_startkmvdsc = kmvdc;
-	//设置虚拟地址空间的开始区间为栈区
+	//设置虚拟地址空间的结束空间为栈区
 	vma->vs_endkmvdsc = stackkmvdc;
 	vma->vs_heapkmvdsc = heapkmvdc;
 	vma->vs_stackkmvdsc = stackkmvdc;
@@ -485,7 +485,7 @@ kmvarsdsc_t *vma_find_kmvarsdsc(virmemadrs_t *vmalocked, adr_t start, size_t vas
 		}
 	}
 	
-	return NULL;
+	return NULL;ppp[ytgdASZSDS]
 }
 
  //分配虚拟地址空间
