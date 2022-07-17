@@ -19,31 +19,31 @@
 
 typedef struct s_THRDLST
 {
-    list_h_t    tdl_lsth;
-    thread_t*   tdl_curruntd;
-    uint_t      tdl_nr; 
+    list_h_t    tdl_lsth;                //挂载进程的链表头
+    thread_t*   tdl_curruntd;            //该链表上正在运行的进程
+    uint_t      tdl_nr;                  //该链表上进程个数
 }thrdlst_t;
 typedef struct s_SCHDATA
 {
-    spinlock_t  sda_lock;
-    uint_t      sda_cpuid;
-    uint_t      sda_schdflgs;
-    uint_t      sda_premptidx;
-    uint_t      sda_threadnr;
-    uint_t      sda_prityidx;
-    thread_t*   sda_cpuidle;
-    thread_t*   sda_currtd;
-    thrdlst_t   sda_thdlst[PRITY_MAX];
+    spinlock_t  sda_lock;                //自旋锁
+    uint_t      sda_cpuid;               //当前CPU id           
+    uint_t      sda_schdflgs;            //标志  
+    uint_t      sda_premptidx;           //进程抢占计数
+    uint_t      sda_threadnr;            //进程数
+    uint_t      sda_prityidx;            //当前优先级
+    thread_t*   sda_cpuidle;             //当前CPU的空转进程   
+    thread_t*   sda_currtd;              //当前正在运行的进程   
+    thrdlst_t   sda_thdlst[PRITY_MAX];   //进程链表数组
     list_h_t    sda_exitlist;  
 }schdata_t;
 
 typedef struct s_SCHEDCALSS
 {
-    spinlock_t  scls_lock;
-    uint_t      scls_cpunr;
-    uint_t      scls_threadnr;
-    uint_t      scls_threadid_inc;
-    schdata_t   scls_schda[CPUCORE_MAX];
+    spinlock_t  scls_lock;                //自旋锁
+    uint_t      scls_cpunr;               //CPU个数
+    uint_t      scls_threadnr;            //系统中所有的进程数
+    uint_t      scls_threadid_inc;        //分配进程id所用
+    schdata_t   scls_schda[CPUCORE_MAX];  //每个CPU调度数据结构
 }schedclass_t;
 
 

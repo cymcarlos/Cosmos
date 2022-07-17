@@ -13,6 +13,7 @@ void init_krlmm()
     return;
 }
 
+// 内核申请内存
 adr_t krlnew(size_t mmsize)
 {
     if (mmsize == MALCSZ_MIN || mmsize > MALCSZ_MAX)

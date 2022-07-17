@@ -20,10 +20,12 @@ void context_t_init(context_t *initp)
 
     initp->ctx_nextrip = 0;
     initp->ctx_nextrsp = 0;
+    //指向当前CPU的tss
     initp->ctx_nexttss = &x64tss[hal_retn_cpuid()];
     return;
 }
 
+//返回进程id其实就thread_t结构的地址
 uint_t krlretn_thread_id(thread_t *tdp)
 {
     return (uint_t)tdp;
@@ -45,7 +47,7 @@ void thread_t_init(thread_t *initp)
     initp->td_krlstkstart = NULL;
     initp->td_usrstktop = NULL;
     initp->td_usrstkstart = NULL;
-    initp->td_mmdsc = &initmmadrsdsc;
+    initp->td_mmdsc = &initmmadrsdsc;                   //指向默认的地址空间结构
     initp->td_resdsc = NULL;
     initp->td_privtep = NULL;
     initp->td_extdatap = NULL;
@@ -60,6 +62,7 @@ void thread_t_init(thread_t *initp)
     return;
 }
 
+// 进程的实例变量
 thread_t *krlnew_thread_dsc()
 {
 
@@ -192,23 +195,27 @@ retn_step:
 
 void krlthread_kernstack_init(thread_t *thdp, void *runadr, uint_t cpuflags)
 {
-    thdp->td_krlstktop &= (~0xf);
+    //处理栈顶16字节对齐， 低4位全是0
+    thdp->td_krlstktop &= (~0xf);                   // top栈顶 位置是高地址,    从高地址往低地址扩张  
     thdp->td_usrstktop &= (~0xf);
+    //内核栈顶减去intstkregs_t结构的大小
     intstkregs_t *arp = (intstkregs_t *)(thdp->td_krlstktop - sizeof(intstkregs_t));
+     //把intstkregs_t结构的空间初始化为0  
     hal_memset((void*)arp, 0, sizeof(intstkregs_t));
-    
+    //rip寄存器的值设为程序运行首地址 
     arp->r_rip_old = (uint_t)runadr;
-    arp->r_cs_old = K_CS_IDX;
+    arp->r_cs_old = K_CS_IDX;                      //cs寄存器的值设为内核代码段选择子 
     arp->r_rflgs = cpuflags;
-    arp->r_rsp_old = thdp->td_krlstktop;
+    arp->r_rsp_old = thdp->td_krlstktop;           //返回进程的内核栈  
     arp->r_ss_old = 0;
-   
+    //其它段寄存器的值设为内核数据段选择子
     arp->r_ds = K_DS_IDX;
     arp->r_es = K_DS_IDX;
     arp->r_fs = K_DS_IDX;
     arp->r_gs = K_DS_IDX;
- 
+    //设置进程下一次运行的地址为runadr
     thdp->td_context.ctx_nextrip = (uint_t)runadr;
+    //设置进程下一次运行的栈地址为arp, 栈的指针sp
     thdp->td_context.ctx_nextrsp = (uint_t)arp;
 
     return;
@@ -216,15 +223,19 @@ void krlthread_kernstack_init(thread_t *thdp, void *runadr, uint_t cpuflags)
 
 void krlthread_userstack_init(thread_t *thdp, void *runadr, uint_t cpuflags)
 {
-    thdp->td_krlstktop &= (~0xf);
+     //处理栈顶16字节对齐， 低4位全是0
+    thdp->td_krlstktop &= (~0xf);                       // top栈顶 位置是高地址,    从高地址往低地址扩张  
     thdp->td_usrstktop &= (~0xf);
+    //内核栈顶减去intstkregs_t结构的大小
     intstkregs_t *arp = (intstkregs_t *)(thdp->td_krlstktop - sizeof(intstkregs_t));
     hal_memset((void*)arp, 0, sizeof(intstkregs_t));
-    
+     //rip寄存器的值设为程序运行首地址 
     arp->r_rip_old = (uint_t)runadr;
+     //cs寄存器的值设为应用程序代码段选择子             特权级级为R3
     arp->r_cs_old = U_CS_IDX;
     arp->r_rflgs = cpuflags;
     arp->r_rsp_old = thdp->td_usrstktop;
+    //其它段寄存器的值设为应用程序数据段选择子          特权级级为R3
     arp->r_ss_old = U_DS_IDX;
    
     arp->r_ds = U_DS_IDX;
@@ -277,6 +288,7 @@ thread_t *krlnew_user_thread_core(char_t* name, void *filerun, uint_t flg, uint_
 {
     thread_t *ret_td = NULL;
     bool_t acs = FALSE;
+    //分配应用程序栈空
     adr_t usrstkadr = NULL, usrstktop = NULL, krlstkadr = NULL;
     mmadrsdsc_t* mm; 
     mm = new_mmadrsdsc();
@@ -289,7 +301,7 @@ thread_t *krlnew_user_thread_core(char_t* name, void *filerun, uint_t flg, uint_
         del_mmadrsdsc(mm);
         return NULL;
     }
-
+    // 应用程序栈空间
     usrstkadr = mm->msd_virmemadrs.vs_stackkmvdsc->kva_start;
     usrstktop = mm->msd_virmemadrs.vs_stackkmvdsc->kva_end;
     if(USER_VIRTUAL_ADDRESS_END != usrstktop)
@@ -303,14 +315,16 @@ thread_t *krlnew_user_thread_core(char_t* name, void *filerun, uint_t flg, uint_
         del_mmadrsdsc(mm);
         return NULL;
     }
-  
+    //分配应用程序栈空间
     krlstkadr = krlnew(krlstksz);
     if (krlstkadr == NULL)
     {
         del_mmadrsdsc(mm);
         return NULL;
     }
+    //建立thread_t结构体的实例变量
     ret_td = krlnew_thread_dsc();
+    //创建失败必须要释放之前的栈空间
     if (ret_td == NULL)
     {
         acs = krldelete(krlstkadr, krlstksz);
@@ -333,22 +347,24 @@ thread_t *krlnew_user_thread_core(char_t* name, void *filerun, uint_t flg, uint_
     ret_td->td_usrstkstart = usrstkadr;
 
     krlthread_userstack_init(ret_td, filerun, UMOD_EFLAGS);
-
+    //加入调度器系统
     krlschdclass_add_thread(ret_td);
     return ret_td;
 }
 
+//  filerun 运行首地址  相当于ip
 thread_t *krlnew_kern_thread_core(char_t* name, void *filerun, uint_t flg, uint_t prilg, uint_t prity, size_t usrstksz, size_t krlstksz)
 {
     thread_t *ret_td = NULL;
     bool_t acs = FALSE;
     adr_t krlstkadr = NULL;
-
+    //分配内核栈空间
     krlstkadr = krlnew(krlstksz);
     if (krlstkadr == NULL)
     {
         return NULL;
     }
+    //建立thread_t结构体的实例变量
     ret_td = krlnew_thread_dsc();
     if (ret_td == NULL)
     {
@@ -360,19 +376,27 @@ thread_t *krlnew_kern_thread_core(char_t* name, void *filerun, uint_t flg, uint_
         return NULL;
     }
     thread_name(ret_td, name);
+     //设置进程权限
     ret_td->td_privilege = prilg;
+    // 设置进程优先级
     ret_td->td_priority = prity;
-
-    ret_td->td_krlstktop = krlstkadr + (adr_t)(krlstksz - 1);
-    ret_td->td_krlstkstart = krlstkadr;
-
-
+    // 内核栈顶, 包含关系
+    ret_td->td_krlstktop = krlstkadr + (adr_t)(krlstksz - 1);  // top 是高地址，   td_krlstkstart 是低地址
+    ret_td->td_krlstkstart = krlstkadr;                        // 也包含这个 [] 双闭
+     //初始化进程的内核栈
     krlthread_kernstack_init(ret_td, filerun, KMOD_EFLAGS);
-
+     //加入进程调度系统
     krlschdclass_add_thread(ret_td);
     return ret_td;
 }
 
+//  新建进程接口
+//  name 进程名字
+//  filerun 文件地址
+//  prilg   特权级
+//  prity  优先级
+//  usrstksz 程序栈大小
+//  flg 进程类型
 thread_t *krlnew_thread(char_t* name, void *filerun, uint_t flg, uint_t prilg, uint_t prity, size_t usrstksz, size_t krlstksz)
 {
     size_t tustksz = usrstksz, tkstksz = krlstksz;
@@ -385,14 +409,17 @@ thread_t *krlnew_thread(char_t* name, void *filerun, uint_t flg, uint_t prilg, u
     {
         return NULL;
     }
+    //进程应用程序栈大小检查，大于默认大小则使用默认大小
     if (usrstksz < DAFT_TDUSRSTKSZ)
     {
         tustksz = DAFT_TDUSRSTKSZ;
     }
+    //进程内核栈大小检查，大于默认大小则使用默认大小
     if (krlstksz < DAFT_TDKRLSTKSZ)
     {
         tkstksz = DAFT_TDKRLSTKSZ;
     }
+    //是否建立内核进程
     if (KERNTHREAD_FLG == flg)
     {
         return krlnew_kern_thread_core(name, filerun, flg, prilg, prity, tustksz, tkstksz);

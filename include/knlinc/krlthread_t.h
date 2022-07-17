@@ -28,12 +28,12 @@
 #define THREAD_MAX (4)
 
 #define THREAD_NAME_MAX (64)
-#define KERNTHREAD_FLG 0
-#define USERTHREAD_FLG 3
+#define KERNTHREAD_FLG 0                        // 内核进程
+#define USERTHREAD_FLG 3                        // 用户进程
 
 #if((defined CFG_X86_PLATFORM)) 
-#define DAFT_TDUSRSTKSZ 0x8000
-#define DAFT_TDKRLSTKSZ 0x8000
+#define DAFT_TDUSRSTKSZ 0x8000                  // 程序栈默认大小
+#define DAFT_TDKRLSTKSZ 0x8000                  // 内核栈默认大小
 #endif
 
 
@@ -49,8 +49,8 @@
 #define U_CS_IDX    0x1b
 #define U_DS_IDX    0x23
 #define K_TAR_IDX   0x28
-#define UMOD_EFLAGS 0x1202
-#define KMOD_EFLAGS	0x202
+#define UMOD_EFLAGS 0x1202                          // 用户
+#define KMOD_EFLAGS	0x202                           // 内核                
 
 typedef struct s_MICRSTK
 {
@@ -61,37 +61,37 @@ typedef struct s_MICRSTK
 
 typedef struct s_CONTEXT
 {  
-    uint_t       ctx_nextrip;
-    uint_t       ctx_nextrsp;
-    x64tss_t*    ctx_nexttss;
+    uint_t       ctx_nextrip;                                   //保存下一次运行的地址    
+    uint_t       ctx_nextrsp;                                   //保存下一次运行时内核栈的地址 
+    x64tss_t*    ctx_nexttss;                                   //指向tss结构        
 }context_t;
 
 typedef struct s_THREAD
 {
-    spinlock_t  td_lock;
-    list_h_t    td_list;
-    uint_t      td_flgs;
-    uint_t      td_stus;
-    uint_t      td_cpuid;
-    uint_t      td_id;
-    uint_t      td_tick;
-    uint_t      td_sumtick;
-    uint_t      td_privilege;
-    uint_t      td_priority;
-    uint_t      td_runmode;
-    adr_t       td_krlstktop;
-    adr_t       td_krlstkstart;
-    adr_t       td_usrstktop;
-    adr_t       td_usrstkstart;
-    mmadrsdsc_t* td_mmdsc;
+    spinlock_t  td_lock;                                        //进程的自旋锁
+    list_h_t    td_list;                                        //进程链表 
+    uint_t      td_flgs;                                        //进程的标志
+    uint_t      td_stus;                                        //进程的状态
+    uint_t      td_cpuid;                                       //进程所在的CPU的id
+    uint_t      td_id;                                          //进程的id
+    uint_t      td_tick;                                        //进程运行了多少tick   
+    uint_t      td_sumtick;         
+    uint_t      td_privilege;                                   //进程的权限                                         
+    uint_t      td_priority;                                    //进程的优先级
+    uint_t      td_runmode;                                     //进程的运行模式        
+    adr_t       td_krlstktop;                                   //应用程序内核栈顶地址  相当于栈段地址
+    adr_t       td_krlstkstart;                                 //应用程序内核栈开始地址
+    adr_t       td_usrstktop;                                   //应用程序栈顶地址        
+    adr_t       td_usrstkstart;                                 //应用程序栈开始地址            
+    mmadrsdsc_t* td_mmdsc;                                      //地址空间结构
     void*       td_resdsc;
     void*       td_privtep;
     void*       td_extdatap;
     char_t*     td_appfilenm;
     uint_t      td_appfilenmlen;
-    context_t   td_context;
+    context_t   td_context;                                    //机器上下文件结构      
     objnode_t*  td_handtbl[TD_HAND_MAX];
-    char_t      td_name[THREAD_NAME_MAX];
+    char_t      td_name[THREAD_NAME_MAX];                      //打开的对象数组 
 }thread_t;
 
 #endif // KRLTHREAD_T_H

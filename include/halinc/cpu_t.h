@@ -13,7 +13,7 @@ typedef struct s_INTSTKREGS
 	uint_t r_gs;
 	uint_t r_fs;
 	uint_t r_es;
-	uint_t r_ds;
+	uint_t r_ds;												//段寄存器
 	uint_t r_r15;
 	uint_t r_r14;
 	uint_t r_r13;
@@ -29,11 +29,11 @@ typedef struct s_INTSTKREGS
 	uint_t r_rcx;
 	uint_t r_rbx;
 	uint_t r_rax;
-	uint_t r_rip_old;
-	uint_t r_cs_old;
-	uint_t r_rflgs;
-	uint_t r_rsp_old;
-	uint_t r_ss_old;
+	uint_t r_rip_old;									  	 //	ip程序指针寄存器
+	uint_t r_cs_old;										 // 代码段寄存器
+	uint_t r_rflgs;											 // rflags标志寄存 	
+	uint_t r_rsp_old;										 // 栈指针寄存器
+	uint_t r_ss_old;										 // 栈段寄存器
 }intstkregs_t;
 
 typedef struct s_FAULTSTKREGS

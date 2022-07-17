@@ -39,9 +39,11 @@ void init_ab_thread()
     return;
 }
 
+
 void init_user_thread()
 {
     thread_t *t = NULL;
+    // 新建新建 oneuser.app
     t = krlnew_thread("oneuser.app", (void *)APPRUN_START_VITRUALADDR, USERTHREAD_FLG,
                       PRILG_USR, PRITY_MIN, DAFT_TDUSRSTKSZ, DAFT_TDKRLSTKSZ);
     t = krlthread_execvl(t, "oneuser.app");
@@ -52,6 +54,7 @@ void init_user_thread()
     return;
 }
 
+// 空转进程
 void init_krlcpuidle()
 {
     new_cpuidle();
@@ -79,6 +82,7 @@ void krlcpuidle_start()
 
     return;
 }
+// 新建一个空转进程
 thread_t *new_cpuidle_thread()
 {
 
@@ -127,6 +131,7 @@ void new_cpuidle()
     return;
 }
 
+// 空转进程调度分配函数
 void krlcpuidle_main()
 {
     uint_t i = 0;
@@ -134,6 +139,7 @@ void krlcpuidle_main()
     {
         //kprint("空转进程运行:%x\n", i);
         // die(0x400);
+        // 
         krlschedul();
     }
     return;

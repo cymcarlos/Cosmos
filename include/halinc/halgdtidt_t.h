@@ -141,15 +141,15 @@ typedef struct s_IDTPTR
 
 typedef struct s_X64TSS
 {
-	u32_t reserv0;
-	u64_t rsp0;
-	u64_t rsp1;
-	u64_t rsp2;
-	u64_t reserv28;
-	u64_t ist[7];
-	u64_t reserv92;
-	u16_t reserv100;
-	u16_t iobase;
+	u32_t reserv0;												//保留
+	u64_t rsp0;													//R0特权级的栈地址	
+	u64_t rsp1;													//R1特权级的栈地址，我们未使用
+	u64_t rsp2;													//R2特权级的栈地址，我们未使用		
+	u64_t reserv28;												//保留
+	u64_t ist[7];												//我们未使用							
+	u64_t reserv92;												//保留
+	u16_t reserv100;											//保留
+	u16_t iobase;												//我们未使用
 	
 }__attribute__((packed)) x64tss_t;
 

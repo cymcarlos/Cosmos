@@ -161,6 +161,7 @@ void kvirmemadrs_t_init(kvirmemadrs_t *initp)
 kmvarsdsc_t *new_kmvarsdsc()
 {
 	kmvarsdsc_t *kmvdc = NULL;
+	// 分享对象接口
 	kmvdc = (kmvarsdsc_t *)kmsob_new(sizeof(kmvarsdsc_t));
 	if (NULL == kmvdc)
 	{
@@ -169,7 +170,7 @@ kmvarsdsc_t *new_kmvarsdsc()
 	kmvarsdsc_t_init(kmvdc);
 	return kmvdc;
 }
-
+//删除kmvarsdsc_t结构
 bool_t del_kmvarsdsc(kmvarsdsc_t *delkmvd)
 {
 	if (NULL == delkmvd)
@@ -231,18 +232,20 @@ bool_t kvma_inituserspace_virmemadrs(virmemadrs_t *vma)
 	{
 		return FALSE;
 	}
+	 //分配一个kmvarsdsc_t  地址空间
 	kmvdc = new_kmvarsdsc();
 	if (NULL == kmvdc)
 	{
 		return FALSE;
 	}
+	//分配一个堆区的kmvarsdsc_t
 	heapkmvdc = new_kmvarsdsc();
 	if(NULL == heapkmvdc)
 	{
 		del_kmvarsdsc(kmvdc);
 		return FALSE;
 	}
-
+	//分配一个栈区的kmvarsdsc_t
 	stackkmvdc = new_kmvarsdsc();
 	if (NULL == stackkmvdc)
 	{
@@ -250,8 +253,9 @@ bool_t kvma_inituserspace_virmemadrs(virmemadrs_t *vma)
 		del_kmvarsdsc(heapkmvdc);
 		return FALSE;
 	}
-
+	//虚拟区间开始地址0x1000
 	kmvdc->kva_start = USER_VIRTUAL_ADDRESS_START + 0x1000;
+	//虚拟区间结束地址0x5000
 	kmvdc->kva_end = kmvdc->kva_start + 0x4000;
 	kmvdc->kva_mcstruct = vma;
 
@@ -260,6 +264,8 @@ bool_t kvma_inituserspace_virmemadrs(virmemadrs_t *vma)
 	heapkmvdc->kva_mcstruct = vma;
 	heapkmvdc->kva_maptype = KMV_HEAP_TYPE;
 
+ 	//栈虚拟区间开始地址0x1000USER_VIRTUAL_ADDRESS_END - 0x40000000
+	// 
 	stackkmvdc->kva_start = PAGE_ALIGN(USER_VIRTUAL_ADDRESS_END - 0x40000000);
 	stackkmvdc->kva_end = USER_VIRTUAL_ADDRESS_END;
 	stackkmvdc->kva_mcstruct = vma;
@@ -268,13 +274,17 @@ bool_t kvma_inituserspace_virmemadrs(virmemadrs_t *vma)
 	krlspinlock_lock(&vma->vs_lock);
 	vma->vs_isalcstart = USER_VIRTUAL_ADDRESS_START;
 	vma->vs_isalcend = USER_VIRTUAL_ADDRESS_END;
+	//设置虚拟地址空间的开始区间为kmvdc
 	vma->vs_startkmvdsc = kmvdc;
+	//设置虚拟地址空间的开始区间为栈区
 	vma->vs_endkmvdsc = stackkmvdc;
 	vma->vs_heapkmvdsc = heapkmvdc;
 	vma->vs_stackkmvdsc = stackkmvdc;
+	//加入链表
 	list_add_tail(&kmvdc->kva_list, &vma->vs_list);
 	list_add_tail(&heapkmvdc->kva_list, &vma->vs_list);
 	list_add_tail(&stackkmvdc->kva_list, &vma->vs_list);
+	//计数加2
 	vma->vs_kmvdscnr += 3;
 	krlspinlock_unlock(&vma->vs_lock);
 	return TRUE;
@@ -358,9 +368,11 @@ void test_vadr()
 
 void init_kvirmemadrs()
 {
+	//初始化mmadrsdsc_t结构非常简单, 全部默认初始化
 	mmadrsdsc_t_init(&initmmadrsdsc);
 	kvirmemadrs_t_init(&krlvirmemadrs);
 	kvma_seting_kvirmemadrs(&krlvirmemadrs);
+	//初始化进程的用户空间 
 	kvma_inituserspace_virmemadrs(&initmmadrsdsc.msd_virmemadrs);
 	hal_mmu_init(&initmmadrsdsc.msd_mmu);
 	hal_mmu_load(&initmmadrsdsc.msd_mmu);
@@ -370,24 +382,26 @@ void init_kvirmemadrs()
 	return;
 }
 
-
+//检查kmvarsdsc_t结构
 kmvarsdsc_t *vma_find_kmvarsdsc_is_ok(virmemadrs_t *vmalocked, kmvarsdsc_t *curr, adr_t start, size_t vassize)
 {
 	kmvarsdsc_t *nextkmvd = NULL;
 	adr_t newend = start + (adr_t)vassize;
-
+	//如果curr不是最后一个先检查当前kmvarsdsc_t结构
 	if (list_is_last(&curr->kva_list, &vmalocked->vs_list) == FALSE)
-	{
+	{	//就获取curr的下一个kmvarsdsc_t结构
 		nextkmvd = list_next_entry(curr, kmvarsdsc_t, kva_list);
-		if (NULL == start)
-		{
+		if (NULL == start)			//由系统动态决定分配虚拟空间的开始地址， 没有指定物理空间
+		{	//如果curr的结束地址加上分配的大小小于等于下一个kmvarsdsc_t结构的开始地址就返回curr
+			// 就是 {Astart, Aend},  {Bstart, Bend} , 刚好在Aend 到
 			if ((curr->kva_end + (adr_t)vassize) <= nextkmvd->kva_start)
 			{
 				return curr;
 			}
 		}
+		// TODO 这里为啥是 >= 号
 		else
-		{
+		{	//否则比较应用指定分配的开始、结束地址是不是在curr和下一个kmvarsdsc_t结构之间
 			if ((curr->kva_end <= start) && (newend <= nextkmvd->kva_start))
 			{
 				return curr;
@@ -396,15 +410,17 @@ kmvarsdsc_t *vma_find_kmvarsdsc_is_ok(virmemadrs_t *vmalocked, kmvarsdsc_t *curr
 	}
 	else
 	{
+		//否则curr为最后一个kmvarsdsc_t结构
 		if (NULL == start)
 		{
+			//curr的结束地址加上分配空间的大小是不是小于整个虚拟地址空间
 			if ((curr->kva_end + (adr_t)vassize) < vmalocked->vs_isalcend)
 			{
 				return curr;
 			}
 		}
 		else
-		{
+		{	//否则比较应用指定分配的开始、结束地址是不是在curr的结束地址和整个虚拟地址空间的结束地址之间
 			if ((curr->kva_end <= start) && (newend < vmalocked->vs_isalcend))
 			{
 				return curr;
@@ -414,16 +430,18 @@ kmvarsdsc_t *vma_find_kmvarsdsc_is_ok(virmemadrs_t *vmalocked, kmvarsdsc_t *curr
 	return NULL;
 }
 
+//检查kmvarsdsc_t结构
 kmvarsdsc_t *vma_find_kmvarsdsc(virmemadrs_t *vmalocked, adr_t start, size_t vassize, u64_t vaslimits, u32_t vastype)
 {
 	kmvarsdsc_t *kmvdcurrent = NULL, *curr = vmalocked->vs_currkmvdsc;
 	adr_t newend = start + vassize;
 	list_h_t *listpos = NULL;
+	//分配的虚拟空间大小小于4KB不行
 	if (0x1000 > vassize)
 	{
 		return NULL;
 	}
-
+	//将要分配虚拟地址空间的结束地址大于整个虚拟地址空间 不行
 	if (newend > vmalocked->vs_isalcend)
 	{
 		return NULL;
@@ -431,17 +449,18 @@ kmvarsdsc_t *vma_find_kmvarsdsc(virmemadrs_t *vmalocked, adr_t start, size_t vas
 	
 
 	if (NULL != curr)
-	{
+	{	//先检查当前kmvarsdsc_t结构行不行
 		kmvdcurrent = vma_find_kmvarsdsc_is_ok(vmalocked, curr, start, vassize);
 		if (NULL != kmvdcurrent)
 		{
+			// 映射类型
 			if(vaslimits == kmvdcurrent->kva_limits && vastype == kmvdcurrent->kva_maptype)
 			{
 				return kmvdcurrent;
 			}
 		}
 	}
-
+	//遍历virmemadrs_t中的所有的kmvarsdsc_t结构
 	list_for_each(listpos, &vmalocked->vs_list)
 	{
 		curr = list_entry(listpos, kmvarsdsc_t, kva_list);
@@ -469,6 +488,7 @@ kmvarsdsc_t *vma_find_kmvarsdsc(virmemadrs_t *vmalocked, adr_t start, size_t vas
 	return NULL;
 }
 
+ //分配虚拟地址空间
 adr_t vma_new_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize, u64_t vaslimits, u32_t vastype)
 {
 	adr_t retadrs = NULL;
@@ -476,22 +496,22 @@ adr_t vma_new_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize, u64_t vas
 	virmemadrs_t *vma = &mm->msd_virmemadrs;
 	cpuflg_t cpuflg;
 	krlspinlock_cli(&vma->vs_lock, &cpuflg);
-
+	//查找虚拟地址区间
 	currkmvd = vma_find_kmvarsdsc(vma, start, vassize, vaslimits, vastype);
 	if (NULL == currkmvd)
 	{
 		retadrs = NULL;
 		goto out;
 	}
-
+	//进行虚拟地址区间进行检查看能否复用这个数据结构
 	if (((NULL == start) || (start == currkmvd->kva_end)) && (vaslimits == currkmvd->kva_limits) && (vastype == currkmvd->kva_maptype))
-	{
+	{	// 能复用的话，当前虚拟地址区间的结束地址返回
 		retadrs = currkmvd->kva_end;
 		currkmvd->kva_end += vassize;
 		vma->vs_currkmvdsc = currkmvd;
 		goto out;
 	}
-
+	//建立一个新的kmvarsdsc_t虚拟地址区间结构
 	newkmvd = new_kmvarsdsc();
 	if (NULL == newkmvd)
 	{
@@ -501,30 +521,36 @@ adr_t vma_new_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize, u64_t vas
 
 	if (NULL == start)
 	{
-		newkmvd->kva_start = currkmvd->kva_end;
+		newkmvd->kva_start = currkmvd->kva_end;    // 说明是前闭合后开   [)
 	}
 	else
 	{
 		newkmvd->kva_start = start;
 	}
-
+	//设置新的虚拟地址区间的结束地址
 	newkmvd->kva_end = newkmvd->kva_start + vassize;
 	newkmvd->kva_limits = vaslimits;
 	newkmvd->kva_maptype = vastype;
 	newkmvd->kva_mcstruct = vma;
 	vma->vs_currkmvdsc = newkmvd;
 	list_add(&newkmvd->kva_list, &currkmvd->kva_list);
+	//看看新的虚拟地址区间是否是最后一个
 	if (list_is_last(&newkmvd->kva_list, &vma->vs_list) == TRUE)
 	{
 		vma->vs_endkmvdsc = newkmvd;
 	}
-
+	//返回新的虚拟地址区间的开始地址
 	retadrs = newkmvd->kva_start;
 out:
 	krlspinunlock_sti(&vma->vs_lock, &cpuflg);
 	return retadrs;
 }
-
+// 分配虚拟地址空间的接口
+// mmadrsdsc_t  *mm  进程的完整管理结构
+// adr_t start 	     开始地址 
+// vassize		     大小
+// vaslimits
+// vastype			地址类型	
 adr_t vma_new_vadrs(mmadrsdsc_t *mm, adr_t start, size_t vassize, u64_t vaslimits, u32_t vastype)
 {
 	if (NULL == mm || 1 > vassize)
@@ -532,16 +558,16 @@ adr_t vma_new_vadrs(mmadrsdsc_t *mm, adr_t start, size_t vassize, u64_t vaslimit
 		return NULL;
 	}
 	if (NULL != start)
-	{
+	{	//进行参数检查，开始地址要和页面（4KB）对齐，结束地址不能超过整个虚拟地址空间
 		if (((start & 0xfff) != 0) || (0x1000 > start) || (USER_VIRTUAL_ADDRESS_END < (start + vassize)))
 		{
 			return NULL;
 		}
 	}
-
+	//进行参数检查，开始地址要和页面（4KB）对齐，结束地址不能超过整个虚拟地址空间
 	return vma_new_vadrs_core(mm, start, VADSZ_ALIGN(vassize), vaslimits, vastype);
 }
-
+//查找要释放虚拟地址空间的kmvarsdsc_t结构
 kmvarsdsc_t *vma_del_find_kmvarsdsc(virmemadrs_t *vmalocked, adr_t start, size_t vassize)
 {
 	kmvarsdsc_t *curr = vmalocked->vs_currkmvdsc;
@@ -553,12 +579,13 @@ kmvarsdsc_t *vma_del_find_kmvarsdsc(virmemadrs_t *vmalocked, adr_t start, size_t
 	}
 
 	if (NULL != curr)
-	{
+	{	//释放的虚拟地址空间落在了当前kmvarsdsc_t结构表示的虚拟地址区间
 		if ((curr->kva_start) <= start && (newend <= curr->kva_end))
 		{
 			return curr;
 		}
 	}
+	//遍历所有的kmvarsdsc_t结构
 	list_for_each(listpos, &vmalocked->vs_list)
 	{
 		curr = list_entry(listpos, kmvarsdsc_t, kva_list);
@@ -631,6 +658,7 @@ bool_t vma_del_unmapping(mmadrsdsc_t *mm, kmvarsdsc_t *kmvd, adr_t start, size_t
 	return vma_del_unmapping_phyadrs(mm, kmvd, start, end);
 }
 
+//释放虚拟地址空间的核心函数
 bool_t vma_del_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize)
 {
 	bool_t rets = FALSE;
@@ -638,34 +666,38 @@ bool_t vma_del_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize)
 	virmemadrs_t *vma = &mm->msd_virmemadrs;
 	cpuflg_t cpuflg;
 	krlspinlock_cli(&vma->vs_lock, &cpuflg);
-
+	//查找要释放虚拟地址空间的kmvarsdsc_t结构
 	delkmvd = vma_del_find_kmvarsdsc(vma, start, vassize);
 	if (NULL == delkmvd)
 	{
 		rets = FALSE;
 		goto out;
 	}
-
+	//第一种情况要释放的虚拟地址空间正好等于查找的kmvarsdsc_t结构
 	if ((delkmvd->kva_start == start) && (delkmvd->kva_end == (start + (adr_t)vassize)))
 	{
 		vma_del_unmapping(mm, delkmvd, start, vassize);
 		vma_del_set_endcurrkmvd(vma, delkmvd);
 		knl_put_kvmemcbox(delkmvd->kva_kvmbox);
+		//脱链
 		list_del(&delkmvd->kva_list);
+		//删除kmvarsdsc_t结构
 		del_kmvarsdsc(delkmvd);
 		vma->vs_kmvdscnr--;
 		rets = TRUE;
 		goto out;
 	}
-
+	//第二种情况要释放的虚拟地址空间是在查找的kmvarsdsc_t结构的上半部分
 	if ((delkmvd->kva_start == start) && (delkmvd->kva_end > (start + (adr_t)vassize)))
 	{
+		//所以直接把查找的kmvarsdsc_t结构的开始地址设置为释放虚拟地址空间的结束地址
 		delkmvd->kva_start = start + (adr_t)vassize;
 		vma_del_unmapping(mm, delkmvd, start, vassize);
 		rets = TRUE;
 		goto out;
 	}
 
+	//第三种情况要释放的虚拟地址空间是在查找的kmvarsdsc_t结构的下半部分
 	if ((delkmvd->kva_start < start) && (delkmvd->kva_end == (start + (adr_t)vassize)))
 	{
 		delkmvd->kva_end = start;
@@ -673,19 +705,22 @@ bool_t vma_del_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize)
 		rets = TRUE;
 		goto out;
 	}
-
+	
+	//第四种情况要释放的虚拟地址空间是在查找的kmvarsdsc_t结构的中间
 	if ((delkmvd->kva_start < start) && (delkmvd->kva_end > (start + (adr_t)vassize)))
 	{
+		//所以要再新建一个kmvarsdsc_t结构来处理释放虚拟地址空间之后的下半虚拟部分地址空间
 		newkmvd = new_kmvarsdsc();
 		if (NULL == newkmvd)
 		{
 			rets = FALSE;
 			goto out;
 		}
-
+		//让新的kmvarsdsc_t结构指向查找的kmvarsdsc_t结构的后半部分虚拟地址空间
 		newkmvd->kva_end = delkmvd->kva_end;
 		newkmvd->kva_start = start + (adr_t)vassize;
 		newkmvd->kva_limits = delkmvd->kva_limits;
+		//和查找到的kmvarsdsc_t结构保持一致
 		newkmvd->kva_maptype = delkmvd->kva_maptype;
 		newkmvd->kva_mcstruct = vma;
 		delkmvd->kva_end = start;
@@ -694,9 +729,10 @@ bool_t vma_del_vadrs_core(mmadrsdsc_t *mm, adr_t start, size_t vassize)
 		newkmvd->kva_kvmbox = delkmvd->kva_kvmbox;
 
 		vma_del_unmapping(mm, delkmvd, start, vassize);
-
+		//加入链表
 		list_add(&newkmvd->kva_list, &delkmvd->kva_list);
 		vma->vs_kmvdscnr++;
+		//是否为最后一个kmvarsdsc_t结构
 		if (list_is_last(&newkmvd->kva_list, &vma->vs_list) == TRUE)
 		{
 			vma->vs_endkmvdsc = newkmvd;
@@ -716,13 +752,14 @@ out:
 	krlspinunlock_sti(&vma->vs_lock, &cpuflg);
 	return rets;
 }
-
+//释放虚拟地址空间的接口
 bool_t vma_del_vadrs(mmadrsdsc_t *mm, adr_t start, size_t vassize)
 {
 	if (NULL == mm || 1 > vassize || NULL == start)
 	{
 		return FALSE;
 	}
+	//调用核心处理函数
 	return vma_del_vadrs_core(mm, start, VADSZ_ALIGN(vassize));
 }
 
@@ -1044,11 +1081,12 @@ kvmemcbox_t *vma_map_retn_kvmemcbox(kmvarsdsc_t *kmvd)
 	{
 		return NULL;
 	}
-
+	// 如果kmvarsdsc_t结构中已经存在了kvmemcbox_t结构，则直接返回
 	if (NULL != kmvd->kva_kvmbox)
 	{
 		return kmvd->kva_kvmbox;
 	}
+	//新建一个kvmemcbox_t结构
 	kmbox = knl_get_kvmemcbox();
 	if (NULL == kmbox)
 	{
@@ -1114,6 +1152,7 @@ out:
 	return rets;
 }
 
+//分配一个物理内存页面，挂载到kvmemcbox_t中，并返回对应的msadsc_t结构
 msadsc_t *vma_new_usermsa(mmadrsdsc_t *mm, kvmemcbox_t *kmbox)
 {
 	u64_t pages = 1, retpnr = 0;
@@ -1123,7 +1162,7 @@ msadsc_t *vma_new_usermsa(mmadrsdsc_t *mm, kvmemcbox_t *kmbox)
 	{
 		return NULL;
 	}
-
+	// TODO 用户进程请求 物理页
 	msa = mm_divpages_procmarea(&memmgrob, pages, &retpnr);
 	if (NULL == msa)
 	{
@@ -1147,24 +1186,25 @@ adr_t vma_map_msa_fault(mmadrsdsc_t *mm, kvmemcbox_t *kmbox, adr_t vadrs, u64_t 
 	{
 		return NULL;
 	}
-
+	//分配一个物理内存页面，挂载到kvmemcbox_t中，并返回对应的msadsc_t结构
 	usermsa = vma_new_usermsa(mm, kmbox);
 	if (NULL == usermsa)
-	{
+	{	//没有物理内存页面返回NULL表示失败
 		return NULL;
 	}
-
+	//获取msadsc_t对应的内存页面的物理地址
 	phyadrs = msadsc_ret_addr(usermsa);
-
+	//建立MMU页表完成虚拟地址到物理地址的映射
 	if (hal_mmu_transform(&mm->msd_mmu, vadrs, phyadrs, flags) == TRUE)
 	{
 		return phyadrs;
 	}
-
+	//映射失败就要先释放分配的物理内存页面
 	vma_del_usermsa(mm, kmbox, usermsa, phyadrs);
 	return NULL;
 }
 
+//分配物理内存页面并建立MMU页表
 adr_t vma_map_phyadrs(mmadrsdsc_t *mm, kmvarsdsc_t *kmvd, adr_t vadrs, u64_t flags)
 {
 	kvmemcbox_t *kmbox = kmvd->kva_kvmbox;
@@ -1172,6 +1212,7 @@ adr_t vma_map_phyadrs(mmadrsdsc_t *mm, kmvarsdsc_t *kmvd, adr_t vadrs, u64_t fla
 	{
 		return NULL;
 	}
+	//接口函数
 	return vma_map_msa_fault(mm, kmbox, vadrs, flags);
 }
 
@@ -1212,6 +1253,7 @@ sint_t vma_map_fairvadrs_core(mmadrsdsc_t *mm, adr_t vadrs)
 	kvmemcbox_t *kmbox = NULL;
 	cpuflg_t cpuflg;
 	krlspinlock_cli(&vma->vs_lock, &cpuflg);
+	//查找对应的kmvarsdsc_t结构
 	kmvd = vma_map_find_kmvarsdsc(vma, vadrs);
 	if (NULL == kmvd)
 	{
@@ -1219,6 +1261,7 @@ sint_t vma_map_fairvadrs_core(mmadrsdsc_t *mm, adr_t vadrs)
 		rets = -EFAULT;
 		goto out;
 	}
+	//返回kmvarsdsc_t结构下对应kvmemcbox_t结构
 	kmbox = vma_map_retn_kvmemcbox(kmvd);
 	if (NULL == kmbox)
 	{
@@ -1226,6 +1269,7 @@ sint_t vma_map_fairvadrs_core(mmadrsdsc_t *mm, adr_t vadrs)
 		rets = -ENOOBJ;
 		goto out;
 	}
+	//分配物理内存页面并建立MMU页表
 	phyadrs = vma_map_phyadrs(mm, kmvd, vadrs, (0 | PML4E_US | PML4E_RW | PML4E_P));
 	if (NULL == phyadrs)
 	{
@@ -1233,7 +1277,7 @@ sint_t vma_map_fairvadrs_core(mmadrsdsc_t *mm, adr_t vadrs)
 		rets = -ENOMEM;
 		goto out;
 	}
-	vma_full_textbin(mm, kmvd, vadrs);//骚操作
+	vma_full_textbin(mm, kmvd, vadrs);//骚操作, 啥掃操作
 	rets = EOK;
 
 out:
@@ -1241,8 +1285,10 @@ out:
 	return rets;
 }
 
+//缺页异常处理接口
 sint_t vma_map_fairvadrs(mmadrsdsc_t *mm, adr_t vadrs)
 {
+	//对参数进行检查
 	if ((0x1000 > vadrs) || (USER_VIRTUAL_ADDRESS_END < vadrs) || (NULL == mm))
 	{
 		return -EPARAM;
@@ -1443,6 +1489,7 @@ void knl_decount_kvmemcbox(kvmemcbox_t* kmbox)
 	return;
 }
 
+// TODO 这里可以回来看看
 kvmemcbox_t* knl_get_kvmemcbox()
 {
 	kvmemcbox_t* kmb = NULL;

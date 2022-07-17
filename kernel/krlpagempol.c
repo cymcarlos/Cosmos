@@ -129,12 +129,14 @@ adr_t kmempool_pages_core_new(size_t msize)
     kmempool_t *kmplp = &oskmempool;
     uint_t relpnr = 0;
     msadsc_t *retmsa = NULL;
+    // 内核分配物理页
     retmsa = mm_division_pages(&memmgrob, msize >> 12, &relpnr, MA_TYPE_KRNL, DMF_RELDIV);
     if (NULL == retmsa)
     {
         return NULL;
     }
     msadsc_add_kmempool(kmplp, retmsa, relpnr);
+    // 返回虚拟地址
     return msadsc_ret_vaddr(retmsa);
 #endif
 }
@@ -173,7 +175,7 @@ bool_t kmempool_objsz_core_delete(adr_t fradr, size_t frsz)
 
 adr_t kmempool_objsz_new(size_t msize)
 {
-    size_t sz = OBJS_ALIGN(msize);
+    size_t sz = OBJS_ALIGN(msize);     //  对象对齐 32 64 96 等等 32 对齐
     if (sz > OBJSORPAGE)
     {
         return NULL;
@@ -191,9 +193,10 @@ bool_t kmempool_objsz_delete(adr_t fradr, size_t frsz)
     return kmempool_objsz_core_delete(fradr, fsz);
 }
 
+// 分配页
 adr_t kmempool_pages_new(size_t msize)
 {
-    size_t sz = PAGE_ALIGN(msize);
+    size_t sz = PAGE_ALIGN(msize); // 4k 对齐
 
     return kmempool_pages_core_new(sz);
 }
@@ -211,16 +214,17 @@ bool_t kmempool_pages_delete(adr_t fradr, size_t frsz)
 
 adr_t kmempool_onsize_new(size_t msize)
 {
+    // 大于 半页则，分配页
     if (msize > OBJSORPAGE)
     {
         return kmempool_pages_new(msize);
     }
+    // 分配对象
     return kmempool_objsz_new(msize);
 }
 
 bool_t kmempool_onsize_delete(adr_t fradr, size_t frsz)
 {
-
     if (frsz > OBJSORPAGE)
     {
         return kmempool_pages_delete(fradr, frsz);

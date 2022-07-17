@@ -8,12 +8,13 @@
 
 void thrdlst_t_init(thrdlst_t *initp)
 {
-    list_init(&initp->tdl_lsth);
+    list_init(&initp->tdl_lsth);           //初始化挂载进程的链表
     initp->tdl_curruntd = NULL;
     initp->tdl_nr = 0;
     return;
 }
 
+// 每个cpu 对应的数据结构
 void schdata_t_init(schdata_t *initp)
 {
     krlspinlock_init(&initp->sda_lock);
@@ -22,24 +23,25 @@ void schdata_t_init(schdata_t *initp)
     initp->sda_premptidx = 0;
     initp->sda_threadnr = 0;
     initp->sda_prityidx = 0;
-    initp->sda_cpuidle = NULL;
+    initp->sda_cpuidle = NULL;                   //开始没有空转进程和运行的进程
     initp->sda_currtd = NULL;
     for (uint_t ti = 0; ti < PRITY_MAX; ti++)
-    {
+    {   //初始化schdata_t结构中的每个thrdlst_t结构, 各个优先级
         thrdlst_t_init(&initp->sda_thdlst[ti]);
     }
     list_init(&initp->sda_exitlist);
     return;
 }
 
+ //初始化osschedcls变量
 void schedclass_t_init(schedclass_t *initp)
 {
     krlspinlock_init(&initp->scls_lock);
-    initp->scls_cpunr = CPUCORE_MAX;
-    initp->scls_threadnr = 0;
+    initp->scls_cpunr = CPUCORE_MAX;                               // cpu 数量
+    initp->scls_threadnr = 0;       
     initp->scls_threadid_inc = 0;
     for (uint_t si = 0; si < CPUCORE_MAX; si++)
-    {
+    {   //初始化osschedcls变量中的每个schdata_t
         schdata_t_init(&initp->scls_schda[si]);
     }
     return;
@@ -47,18 +49,20 @@ void schedclass_t_init(schedclass_t *initp)
 
 void init_krlsched()
 {
+    //初始化osschedcls变量
     schedclass_t_init(&osschedcls);
     kprint("进程调度器初始化成功\n");
     // die(0x400);
     return;
 }
 
+// 当前运行进程
 thread_t *krlsched_retn_currthread()
 {
-    uint_t cpuid = hal_retn_cpuid();
+    uint_t cpuid = hal_retn_cpuid();               // 
     schdata_t *schdap = &osschedcls.scls_schda[cpuid];
     if (schdap->sda_currtd == NULL)
-    {
+    {   //若调度数据结构中当前运行进程的指针为空，就出错死机
         hal_sysdie("schdap->sda_currtd NULL");
     }
     return schdap->sda_currtd;
@@ -207,6 +211,8 @@ void krlsched_chkneed_pmptsched()
     }
     return;
 }
+
+// 调度算法
 thread_t *krlsched_select_thread()
 {
     thread_t *retthd = NULL, *tdtmp = NULL, *cur = NULL;
@@ -219,16 +225,17 @@ thread_t *krlsched_select_thread()
 
     for (uint_t pity = 0; pity < PRITY_MAX; pity++)
     {
-
+        //从最高优先级开始扫描
         list_for_each(pos, &(schdap->sda_thdlst[pity].tdl_lsth))
-        {
+        {   //取出当前优先级进程链表下的第一个进程  
             tdtmp = list_entry(pos, thread_t, td_list);
+            // 新建进程 或者 运行中进程
             if (tdtmp->td_stus == TDSTUS_RUN || tdtmp->td_stus == TDSTUS_NEW)
             {
                 list_del(&tdtmp->td_list);
-                cur = schdap->sda_thdlst[pity].tdl_curruntd;
+                cur = schdap->sda_thdlst[pity].tdl_curruntd;                
                 if (cur != NULL)
-                {
+                {   // 直接放到队尾， 和
                     list_add_tail(&cur->td_list, &schdap->sda_thdlst[pity].tdl_lsth);
                 }
 
@@ -244,7 +251,7 @@ thread_t *krlsched_select_thread()
             goto return_step;
         }
     }
-
+    //如果最后也没有找到进程就返回默认的空转进程
     schdap->sda_prityidx = PRITY_MIN;
     retthd = krlsched_retn_idlethread();
 
@@ -263,8 +270,8 @@ void krlschedul()
         retnfrom_first_sched(krlsched_retn_idlethread());
         return;
     }
-    thread_t *prev = krlsched_retn_currthread(),
-             *next = krlsched_select_thread();
+    thread_t *prev = krlsched_retn_currthread(),                //返回当前运行进程
+             *next = krlsched_select_thread();                  //选择下一个进程
     // kprint("调度器运行 当前进程:%s ID:%d,下一个进程:%s stus:%x ID:%d\n", 
     // prev->td_appfilenm, prev->td_id, next->td_appfilenm, next->td_stus, next->td_id);
     save_to_new_context(next, prev);
@@ -326,6 +333,7 @@ err_step:
     return;
 }
 
+//TODO 加入进程调度系统
 void krlschdclass_add_thread(thread_t *thdp)
 {
     uint_t cpuid = hal_retn_cpuid();
@@ -348,10 +356,14 @@ TNCCALL void __to_new_context(thread_t *next, thread_t *prev)
 {
     uint_t cpuid = hal_retn_cpuid();
     schdata_t *schdap = &osschedcls.scls_schda[cpuid];
+    //设置当前运行进程为下一个运行的进程
     schdap->sda_currtd = next;
+    //设置下一个运行进程的tss为当前CPU的tss
     next->td_context.ctx_nexttss = &x64tss[cpuid];
     //x64tss[cpuid].rsp0 = next->td_krlstktop;
+    //设置当前CPU的tss中的R0栈为下一个运行进程的内核栈
     next->td_context.ctx_nexttss->rsp0 = next->td_krlstktop;
+    //装载下一个运行进程的MMU页表
     hal_mmu_load(&next->td_mmdsc->msd_mmu);
     if (next->td_stus == TDSTUS_NEW)
     {
@@ -366,6 +378,7 @@ void save_to_new_context(thread_t *next, thread_t *prev)
 {
 #ifdef CFG_X86_PLATFORM
     __asm__ __volatile__(
+        // 当前寄存器压栈
         "pushfq \n\t"
         "cli \n\t"
         "pushq %%rax\n\t"
@@ -383,11 +396,13 @@ void save_to_new_context(thread_t *next, thread_t *prev)
         "pushq %%r13\n\t"
         "pushq %%r14\n\t"
         "pushq %%r15\n\t"
-
+        //保存CPU的RSP寄存器到当前进程的机器上下文结构中
         "movq %%rsp,%[PREV_RSP] \n\t"
+        //把下一个进程的机器上下文结构中的RSP的值，写入CPU的RSP寄存器中  //事实上这里已经切换到下一个进程了，因为切换进程的内核栈
         "movq %[NEXT_RSP],%%rsp \n\t"
+        //调用__to_new_context函数切换MMU页表
         "callq __to_new_context\n\t"
-
+        //恢复下一个进程的通用寄存器
         "popq %%r15\n\t"
         "popq %%r14\n\t"
         "popq %%r13\n\t"
@@ -403,7 +418,7 @@ void save_to_new_context(thread_t *next, thread_t *prev)
         "popq %%rcx\n\t"
         "popq %%rbx\n\t"
         "popq %%rax\n\t"
-        "popfq \n\t"
+        "popfq \n\t"             //恢复下一个进程的标志寄存器
         : [PREV_RSP] "=m"(prev->td_context.ctx_nextrsp)
         : [NEXT_RSP] "m"(next->td_context.ctx_nextrsp), "D"(next), "S"(prev)
         : "memory");
@@ -416,7 +431,9 @@ void retnfrom_first_sched(thread_t *thrdp)
 
 #ifdef CFG_X86_PLATFORM
     __asm__ __volatile__(
-        "movq %[NEXT_RSP],%%rsp\n\t"
+        //设置CPU的RSP寄存器为该进程机器上下文结构中的RSP
+        "movq %[NEXT_RSP],%%rsp\n\t"    
+        //恢复进程保存在内核栈中的段寄存器
         "popq %%r14\n\t"
         "movw %%r14w,%%gs\n\t"
         "popq %%r14\n\t"
@@ -426,6 +443,7 @@ void retnfrom_first_sched(thread_t *thrdp)
         "popq %%r14\n\t"
         "movw %%r14w,%%ds\n\t"
         "popq %%r15\n\t"
+        //恢复进程保存在内核栈中的通用寄存器
         "popq %%r14\n\t"
         "popq %%r13\n\t"
         "popq %%r12\n\t"
@@ -440,8 +458,8 @@ void retnfrom_first_sched(thread_t *thrdp)
         "popq %%rcx\n\t"
         "popq %%rbx\n\t"
         "popq %%rax\n\t"
+        //恢复进程保存在内核栈中的RIP、CS、RFLAGS，（有可能需要恢复进程应用程序的RSP、SS）寄存器
         "iretq\n\t"
-
         :
         : [NEXT_RSP] "m"(thrdp->td_context.ctx_nextrsp)
         : "memory");

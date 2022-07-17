@@ -562,6 +562,7 @@ sdirearr_t* mmu_transform_sdire(mmudsc_t* mmulocked, tdirearr_t* tdirearr, adr_t
 	return sdirearr;
 }
 
+//TODO 建立MMU页表完成虚拟地址到物理地址的映射
 bool_t hal_mmu_transform_core(mmudsc_t* mmu, adr_t vadrs, adr_t padrs, u64_t flags)
 {
 	bool_t rets = FALSE;
@@ -625,6 +626,7 @@ out:
 	return rets;
 }
 
+//建立MMU页表完成虚拟地址到物理地址的映射
 bool_t hal_mmu_transform(mmudsc_t* mmu, adr_t vadrs, adr_t padrs, u64_t flags)
 {
 	if(NULL == mmu)
@@ -799,6 +801,7 @@ void hal_mmu_refresh()
 	return;
 }
 
+// TOOD  MMU初始化
 bool_t hal_mmu_init(mmudsc_t* mmu)
 {
 	bool_t  rets = FALSE;

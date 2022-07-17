@@ -6,11 +6,14 @@
 #include "cosmostypes.h"
 #include "cosmosmctrl.h"
 
+
+
+// TODO 申请内存的时候为啥都是申请内核
 void hal_start()
 {
 
     init_hal();  
-    
+    // 初始化内核
     init_krl();
     return;
 }

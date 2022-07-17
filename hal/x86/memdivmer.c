@@ -943,6 +943,7 @@ msadsc_t *mm_divpages_procmarea(memmgrob_t *mmobjp, uint_t pages, uint_t *retrea
 		*retrealpnr = retpnr;
 		return retmsa;
 	}
+	// 如果用户区没有就请求内核区？
 	retmsa = mm_division_pages(mmobjp, pages, &retpnr, MA_TYPE_KRNL, DMF_RELDIV);
 	if (NULL == retmsa)
 	{

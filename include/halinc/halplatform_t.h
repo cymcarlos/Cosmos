@@ -37,8 +37,8 @@
 #define KRNL_MAP_VIRTADDRESS_SIZE 0x400000000
 #define KRNL_VIRTUAL_ADDRESS_START 0xffff800000000000                   // 虚拟地址开始地址
 #define KRNL_VIRTUAL_ADDRESS_END 0xffffffffffffffff
-#define USER_VIRTUAL_ADDRESS_START 0
-#define USER_VIRTUAL_ADDRESS_END 0x00007fffffffffff
+#define USER_VIRTUAL_ADDRESS_START 0                                    // 用户的虚拟空间开始地址
+#define USER_VIRTUAL_ADDRESS_END 0x00007fffffffffff                     // 用户的虚拟空间结束地址
 #define KRNL_MAP_PHYADDRESS_START 0
 #define KRNL_MAP_PHYADDRESS_END 0x400000000                             // 物理地址结束地址
 #define KRNL_MAP_PHYADDRESS_SIZE 0x400000000
